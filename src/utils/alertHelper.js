@@ -99,8 +99,8 @@ const MyComponent = () => {
     Alert.confirm(
       'Xác nhận xóa',
       'Bạn có chắc muốn xóa?',
-      () => console.log('Confirmed'),
-      () => console.log('Cancelled'),
+      () => {},
+      () => {},
       'Xóa',
       'Hủy'
     );

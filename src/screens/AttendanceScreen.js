@@ -131,9 +131,9 @@ export default function AttendanceScreen() {
 
   const loadTodayAttendance = useCallback(async () => {
     try {
-      console.log('Attendance API not implemented yet');
+      // TODO: Implement attendance API
     } catch (error) {
-      console.log('Error loading attendance:', error);
+      console.error('Error loading attendance:', error);
     }
   }, []);
 

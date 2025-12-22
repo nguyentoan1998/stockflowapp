@@ -10,18 +10,20 @@ import {
   Dimensions,
   TouchableOpacity,
   Image,
-  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import {
+  Card,
   Text,
+  TextInput,
   IconButton,
   Button,
+  Chip,
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { AnimatedLoadingSpinner } from '../LoadingSpinner';
-import { FormInput } from '../CRUDModal/FormInputs';
 
 const { width, height } = Dimensions.get('window');
 
@@ -62,10 +64,10 @@ const StaffCRUDModal = ({
 
   const [avatarUri, setAvatarUri] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (visible) {
-      startOpenAnimation();
       if (initialData) {
         setFormData({
           full_name: initialData.full_name || '',
@@ -75,8 +77,8 @@ const StaffCRUDModal = ({
           address: initialData.address || '',
           date_of_birth: initialData.date_of_birth || '',
           hire_date: initialData.hire_date || '',
-          position_id: initialData.position_id || '',
-          team_id: initialData.team_id || '',
+          position_id: initialData.position_id?.toString() || '',
+          team_id: initialData.team_id?.toString() || '',
           statuss: initialData.statuss || 'Chính thức',
           avatar_url: initialData.avatar_url || null,
           image_url: initialData.image_url || null,
@@ -85,6 +87,7 @@ const StaffCRUDModal = ({
       } else {
         resetForm();
       }
+      startOpenAnimation();
     } else {
       startCloseAnimation();
     }
@@ -107,6 +110,7 @@ const StaffCRUDModal = ({
     });
     setAvatarUri(null);
     setAvatarFile(null);
+    setErrors({});
   };
 
   const startOpenAnimation = () => {
@@ -189,19 +193,68 @@ const StaffCRUDModal = ({
     }
   };
 
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.full_name.trim()) {
+      newErrors.full_name = 'Họ và tên là bắt buộc';
+    }
+
+    if (!formData.employee_code.trim()) {
+      newErrors.employee_code = 'Mã nhân viên là bắt buộc';
+    }
+
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Email không hợp lệ';
+    }
+
+    if (formData.phone && !/^[0-9]{10,11}$/.test(formData.phone.replace(/\s/g, ''))) {
+      newErrors.phone = 'Số điện thoại không hợp lệ (10-11 số)';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = () => {
+    if (!validateForm()) return;
+    
     onSubmit({
       ...formData,
       avatarFile,
     });
   };
 
+  const handleDelete = () => {
+    Alert.alert(
+      'Xác nhận xóa',
+      'Bạn có chắc chắn muốn xóa nhân viên này?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa',
+          style: 'destructive',
+          onPress: onDelete,
+        },
+      ]
+    );
+  };
+
   const getModalTitle = () => {
     switch (mode) {
       case 'create': return 'Thêm nhân viên mới';
-      case 'edit': return 'Chỉnh sửa nhân viên';
-      case 'view': return 'Thông tin nhân viên';
-      default: return '';
+      case 'edit': return 'Sửa nhân viên';
+      case 'view': return 'Chi tiết nhân viên';
+      default: return 'Nhân viên';
+    }
+  };
+
+  const getModalIcon = () => {
+    switch (mode) {
+      case 'create': return 'account-plus';
+      case 'edit': return 'account-edit';
+      case 'view': return 'account-eye';
+      default: return 'account';
     }
   };
 
@@ -216,16 +269,19 @@ const StaffCRUDModal = ({
 
   const isReadOnly = mode === 'view';
 
-  if (!visible) return null;
-
   return (
     <Modal
-      animationType="fade"
+      animationType="none"
       transparent={true}
       visible={visible}
       onRequestClose={onDismiss}
     >
-      <View style={styles.modalOverlay}>
+      <Animated.View
+        style={[
+          styles.modalOverlay,
+          { opacity: fadeAnim }
+        ]}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalContainer}
@@ -234,7 +290,6 @@ const StaffCRUDModal = ({
             style={[
               styles.modalContent,
               {
-                opacity: fadeAnim,
                 transform: [
                   { translateY: slideAnim },
                   { scale: scaleAnim }
@@ -249,7 +304,7 @@ const StaffCRUDModal = ({
             >
               <View style={styles.headerContent}>
                 <MaterialCommunityIcons 
-                  name="account-plus" 
+                  name={getModalIcon()} 
                   size={32} 
                   color="#FFFFFF" 
                 />
@@ -264,139 +319,264 @@ const StaffCRUDModal = ({
             </LinearGradient>
 
             {/* Form Content */}
-            <View style={styles.formWrapper}>
-              <ScrollView 
-                style={styles.formContainer}
-                contentContainerStyle={styles.formContentContainer}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-              >
-                {/* Avatar Section */}
-                <View style={styles.avatarSection}>
-                  <View style={styles.avatarContainer}>
-                    {avatarUri ? (
-                      <Image source={{ uri: avatarUri }} style={styles.avatar} />
-                    ) : (
-                      <View style={styles.avatarPlaceholder}>
-                        <MaterialCommunityIcons name="account" size={64} color="#999" />
+            <ScrollView 
+              style={styles.formContainer}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Avatar Section */}
+              <Card style={styles.sectionCard}>
+                <Card.Content>
+                  <View style={styles.avatarSection}>
+                    <View style={styles.avatarContainer}>
+                      {avatarUri ? (
+                        <Image source={{ uri: avatarUri }} style={styles.avatar} />
+                      ) : (
+                        <View style={styles.avatarPlaceholder}>
+                          <MaterialCommunityIcons name="account" size={64} color="#999" />
+                        </View>
+                      )}
+                    </View>
+                    
+                    {!isReadOnly && (
+                      <View style={styles.avatarActions}>
+                        <TouchableOpacity style={styles.avatarBtn} onPress={pickImage}>
+                          <MaterialCommunityIcons name="image" size={20} color="#2196F3" />
+                          <Text style={styles.avatarBtnText}>Thư viện</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.avatarBtn} onPress={takePhoto}>
+                          <MaterialCommunityIcons name="camera" size={20} color="#2196F3" />
+                          <Text style={styles.avatarBtnText}>Chụp ảnh</Text>
+                        </TouchableOpacity>
                       </View>
                     )}
                   </View>
-                  
-                  {!isReadOnly && (
-                    <View style={styles.avatarActions}>
-                      <TouchableOpacity style={styles.avatarBtn} onPress={pickImage}>
-                        <MaterialCommunityIcons name="image" size={20} color="#2196F3" />
-                        <Text style={styles.avatarBtnText}>Thư viện</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.avatarBtn} onPress={takePhoto}>
-                        <MaterialCommunityIcons name="camera" size={20} color="#2196F3" />
-                        <Text style={styles.avatarBtnText}>Chụp ảnh</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
+                </Card.Content>
+              </Card>
 
-                {/* Basic Info */}
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Thông tin cơ bản</Text>
-                  
-                  <FormInput
+              {/* Basic Info */}
+              <Card style={styles.sectionCard}>
+                <Card.Content>
+                  <Text variant="titleMedium" style={styles.sectionTitle}>
+                    Thông tin cơ bản
+                  </Text>
+
+                  <TextInput
                     label="Họ và tên *"
                     value={formData.full_name}
                     onChangeText={(text) => setFormData({...formData, full_name: text})}
-                    icon="account"
+                    style={styles.input}
+                    mode="outlined"
                     disabled={isReadOnly}
+                    error={!!errors.full_name}
+                    left={<TextInput.Icon icon={() => <MaterialCommunityIcons name="account" size={24} color="#666" />} />}
                     placeholder="VD: Nguyễn Văn A"
                   />
-                  
-                  <FormInput
+                  {errors.full_name && (
+                    <Text style={styles.errorText}>{errors.full_name}</Text>
+                  )}
+
+                  <TextInput
                     label="Mã nhân viên *"
                     value={formData.employee_code}
                     onChangeText={(text) => setFormData({...formData, employee_code: text.toUpperCase()})}
-                    icon="card-account-details"
+                    style={styles.input}
+                    mode="outlined"
                     disabled={isReadOnly}
+                    error={!!errors.employee_code}
+                    left={<TextInput.Icon icon={() => <MaterialCommunityIcons name="card-account-details" size={24} color="#666" />} />}
                     placeholder="VD: NV001"
                     autoCapitalize="characters"
                   />
-                  
-                  <FormInput
-                    label="Email"
-                    value={formData.email}
-                    onChangeText={(text) => setFormData({...formData, email: text})}
-                    icon="email"
-                    disabled={isReadOnly}
-                    placeholder="VD: nhanvien@company.com"
-                    keyboardType="email-address"
-                  />
-                  
-                  <FormInput
-                    label="Số điện thoại"
-                    value={formData.phone}
-                    onChangeText={(text) => setFormData({...formData, phone: text})}
-                    icon="phone"
-                    disabled={isReadOnly}
-                    placeholder="VD: 0901234567"
-                    keyboardType="phone-pad"
-                  />
-                </View>
+                  {errors.employee_code && (
+                    <Text style={styles.errorText}>{errors.employee_code}</Text>
+                  )}
 
-                {/* Work Info */}
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Thông tin công việc</Text>
-                  
-                  {/* Status Picker - Simplified for now */}
-                  <View style={styles.statusPicker}>
-                    <Text style={styles.statusLabel}>Trạng thái *</Text>
-                    <View style={styles.statusOptions}>
-                      {['Chính thức', 'Học việc', 'Nghỉ việc'].map((status) => (
-                        <TouchableOpacity
-                          key={status}
-                          style={[
-                            styles.statusOption,
-                            formData.statuss === status && styles.statusOptionActive,
-                            isReadOnly && styles.statusOptionDisabled,
-                          ]}
-                          onPress={() => !isReadOnly && setFormData({...formData, statuss: status})}
-                          disabled={isReadOnly}
-                        >
-                          <Text
-                            style={[
-                              styles.statusOptionText,
-                              formData.statuss === status && styles.statusOptionTextActive,
-                            ]}
-                          >
-                            {status}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
+                  <View style={styles.rowInputs}>
+                    <TextInput
+                      label="Email"
+                      value={formData.email}
+                      onChangeText={(text) => setFormData({...formData, email: text})}
+                      style={[styles.input, styles.halfWidth]}
+                      mode="outlined"
+                      disabled={isReadOnly}
+                      error={!!errors.email}
+                      left={<TextInput.Icon icon={() => <MaterialCommunityIcons name="email" size={24} color="#666" />} />}
+                      placeholder="email@company.com"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                    
+                    <TextInput
+                      label="Số điện thoại"
+                      value={formData.phone}
+                      onChangeText={(text) => setFormData({...formData, phone: text})}
+                      style={[styles.input, styles.halfWidth]}
+                      mode="outlined"
+                      disabled={isReadOnly}
+                      error={!!errors.phone}
+                      left={<TextInput.Icon icon={() => <MaterialCommunityIcons name="phone" size={24} color="#666" />} />}
+                      placeholder="0901234567"
+                      keyboardType="phone-pad"
+                    />
                   </View>
                   
-                  <FormInput
+                  {(errors.email || errors.phone) && (
+                    <Text style={styles.errorText}>
+                      {errors.email || errors.phone}
+                    </Text>
+                  )}
+
+                  <TextInput
                     label="Địa chỉ"
                     value={formData.address}
                     onChangeText={(text) => setFormData({...formData, address: text})}
-                    icon="map-marker"
+                    style={styles.input}
+                    mode="outlined"
                     disabled={isReadOnly}
                     multiline
                     numberOfLines={2}
+                    left={<TextInput.Icon icon={() => <MaterialCommunityIcons name="map-marker" size={24} color="#666" />} />}
+                    placeholder="Địa chỉ nhà"
                   />
-                </View>
-              </ScrollView>
-            </View>
+                </Card.Content>
+              </Card>
+
+              {/* Work Info */}
+              <Card style={styles.sectionCard}>
+                <Card.Content>
+                  <Text variant="titleMedium" style={styles.sectionTitle}>
+                    Thông tin công việc
+                  </Text>
+
+                  {/* Status Selector */}
+                  <View style={styles.categoryContainer}>
+                    <Text variant="bodyMedium" style={styles.categoryLabel}>
+                      Trạng thái nhân viên:
+                    </Text>
+                    <View style={styles.chipRow}>
+                      {['Chính thức', 'Học việc', 'Nghỉ việc'].map((status) => (
+                        <Chip
+                          key={status}
+                          mode={formData.statuss === status ? 'flat' : 'outlined'}
+                          selected={formData.statuss === status}
+                          onPress={() => !isReadOnly && setFormData({...formData, statuss: status})}
+                          style={styles.statusChip}
+                          disabled={isReadOnly}
+                        >
+                          {status}
+                        </Chip>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Position Selector */}
+                  <View style={styles.categoryContainer}>
+                    <Text variant="bodyMedium" style={styles.categoryLabel}>
+                      Chức vụ:
+                    </Text>
+                    <ScrollView 
+                      horizontal 
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.categoryScroll}
+                    >
+                      <Chip
+                        mode={formData.position_id === '' ? 'flat' : 'outlined'}
+                        selected={formData.position_id === ''}
+                        onPress={() => !isReadOnly && setFormData({...formData, position_id: ''})}
+                        style={styles.categoryChip}
+                        disabled={isReadOnly}
+                      >
+                        Chưa có chức vụ
+                      </Chip>
+                      {positions.map(position => (
+                        <Chip
+                          key={position.id}
+                          mode={formData.position_id === position.id.toString() ? 'flat' : 'outlined'}
+                          selected={formData.position_id === position.id.toString()}
+                          onPress={() => !isReadOnly && setFormData({...formData, position_id: position.id.toString()})}
+                          style={styles.categoryChip}
+                          disabled={isReadOnly}
+                        >
+                          {position.name}
+                        </Chip>
+                      ))}
+                    </ScrollView>
+                  </View>
+
+                  {/* Team Selector */}
+                  <View style={styles.categoryContainer}>
+                    <Text variant="bodyMedium" style={styles.categoryLabel}>
+                      Đội nhóm:
+                    </Text>
+                    <ScrollView 
+                      horizontal 
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.categoryScroll}
+                    >
+                      <Chip
+                        mode={formData.team_id === '' ? 'flat' : 'outlined'}
+                        selected={formData.team_id === ''}
+                        onPress={() => !isReadOnly && setFormData({...formData, team_id: ''})}
+                        style={styles.categoryChip}
+                        disabled={isReadOnly}
+                      >
+                        Chưa có team
+                      </Chip>
+                      {teams.map(team => (
+                        <Chip
+                          key={team.id}
+                          mode={formData.team_id === team.id.toString() ? 'flat' : 'outlined'}
+                          selected={formData.team_id === team.id.toString()}
+                          onPress={() => !isReadOnly && setFormData({...formData, team_id: team.id.toString()})}
+                          style={styles.categoryChip}
+                          disabled={isReadOnly}
+                        >
+                          {team.name}
+                        </Chip>
+                      ))}
+                    </ScrollView>
+                  </View>
+
+                  <View style={styles.rowInputs}>
+                    <TextInput
+                      label="Ngày sinh"
+                      value={formData.date_of_birth}
+                      onChangeText={(text) => setFormData({...formData, date_of_birth: text})}
+                      style={[styles.input, styles.halfWidth]}
+                      mode="outlined"
+                      disabled={isReadOnly}
+                      left={<TextInput.Icon icon={() => <MaterialCommunityIcons name="cake-variant" size={24} color="#666" />} />}
+                      placeholder="DD/MM/YYYY"
+                    />
+                    
+                    <TextInput
+                      label="Ngày vào làm"
+                      value={formData.hire_date}
+                      onChangeText={(text) => setFormData({...formData, hire_date: text})}
+                      style={[styles.input, styles.halfWidth]}
+                      mode="outlined"
+                      disabled={isReadOnly}
+                      left={<TextInput.Icon icon={() => <MaterialCommunityIcons name="calendar" size={24} color="#666" />} />}
+                      placeholder="DD/MM/YYYY"
+                    />
+                  </View>
+                </Card.Content>
+              </Card>
+            </ScrollView>
 
             {/* Action Buttons */}
             <View style={styles.actionContainer}>
               {mode === 'view' ? (
-                <Button
-                  mode="contained"
-                  onPress={onDismiss}
-                  style={styles.actionButton}
-                  buttonColor="#9C27B0"
-                >
-                  Đóng
-                </Button>
+                <View style={styles.viewActions}>
+                  <Button
+                    mode="contained"
+                    onPress={onDismiss}
+                    style={styles.actionButton}
+                    buttonColor="#9C27B0"
+                  >
+                    Đóng
+                  </Button>
+                </View>
               ) : (
                 <View style={styles.editActions}>
                   <Button
@@ -411,7 +591,7 @@ const StaffCRUDModal = ({
                   {mode === 'edit' && onDelete && (
                     <Button
                       mode="contained"
-                      onPress={onDelete}
+                      onPress={handleDelete}
                       style={styles.deleteButton}
                       buttonColor="#f44336"
                       disabled={loading}
@@ -437,15 +617,13 @@ const StaffCRUDModal = ({
         </KeyboardAvoidingView>
 
         {loading && (
-          <View style={styles.loadingOverlay}>
-            <AnimatedLoadingSpinner
-              visible={loading}
-              message={mode === 'create' ? 'Đang tạo mới...' : 'Đang lưu thay đổi...'}
-              type="pulse"
-            />
-          </View>
+          <AnimatedLoadingSpinner
+            visible={loading}
+            message={mode === 'create' ? 'Đang tạo nhân viên...' : 'Đang lưu thay đổi...'}
+            type="pulse"
+          />
         )}
-      </View>
+      </Animated.View>
     </Modal>
   );
 };
@@ -457,16 +635,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -474,10 +642,9 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    width: width > 600 ? 500 : width * 0.9,
+    width: '100%',
     maxWidth: 500,
-    height: height * 0.85,
-    maxHeight: height * 0.9,
+    maxHeight: '90%',
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     shadowColor: '#000',
@@ -488,14 +655,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 20,
     elevation: 15,
-    overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    paddingVertical: 12,
+    padding: 20,
+    paddingBottom: 16,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
@@ -510,22 +676,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 12,
   },
-  formWrapper: {
-    flex: 1,
-  },
   formContainer: {
     flex: 1,
+    padding: 20,
   },
-  formContentContainer: {
-    padding: 16,
-    paddingBottom: 8,
+  sectionCard: {
+    marginBottom: 16,
+    borderRadius: 12,
+    backgroundColor: '#FAFAFA',
+  },
+  sectionTitle: {
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+    textAlign: 'center',
   },
   avatarSection: {
     alignItems: 'center',
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: '#F8F9FA',
-    borderRadius: 12,
   },
   avatarContainer: {
     marginBottom: 12,
@@ -565,61 +732,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  section: {
+  input: {
+    marginBottom: 12,
+    backgroundColor: '#FFFFFF',
+  },
+  rowInputs: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  halfWidth: {
+    width: '48%',
+  },
+  categoryContainer: {
     marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 12,
-  },
-  statusPicker: {
-    marginBottom: 12,
-  },
-  statusLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+  categoryLabel: {
+    color: '#666',
     marginBottom: 8,
   },
-  statusOptions: {
+  categoryScroll: {
     flexDirection: 'row',
+  },
+  categoryChip: {
+    marginRight: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
-  statusOption: {
+  statusChip: {
     flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    backgroundColor: '#fff',
-    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
   },
-  statusOptionActive: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
-  },
-  statusOptionDisabled: {
-    opacity: 0.6,
-  },
-  statusOptionText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#666',
-  },
-  statusOptionTextActive: {
-    color: '#fff',
+  errorText: {
+    color: '#f44336',
+    fontSize: 12,
+    marginTop: -8,
+    marginBottom: 8,
   },
   actionContainer: {
-    padding: 16,
-    paddingTop: 12,
+    padding: 20,
+    paddingTop: 16,
     backgroundColor: '#F8F9FA',
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+  },
+  viewActions: {
+    alignItems: 'center',
   },
   editActions: {
     flexDirection: 'row',

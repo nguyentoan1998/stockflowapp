@@ -44,8 +44,7 @@ export default function ProductsScreen() {
     try {
       setLoading(true);
       const response = await api.get('/api/products');
-      console.log('Products response:', response.data);
-      
+
       // Handle different response formats
       let productsData = [];
       if (Array.isArray(response.data)) {
@@ -55,10 +54,7 @@ export default function ProductsScreen() {
       } else if (response.data?.products && Array.isArray(response.data.products)) {
         productsData = response.data.products;
       }
-      
-      console.log('Products loaded:', productsData.length);
-      console.log('Sample product:', productsData[0]);
-      
+
       setProducts(productsData);
       setFilteredProducts(productsData);
     } catch (error) {
@@ -76,8 +72,7 @@ export default function ProductsScreen() {
   const fetchCategories = async () => {
     try {
       const response = await api.get('/api/product_category');
-      console.log('Categories response:', response.data);
-      
+
       // Handle different response formats
       let categoriesData = [];
       if (Array.isArray(response.data)) {
@@ -85,8 +80,7 @@ export default function ProductsScreen() {
       } else if (response.data?.data && Array.isArray(response.data.data)) {
         categoriesData = response.data.data;
       }
-      
-      console.log('Categories loaded:', categoriesData.length);
+
       setCategories(categoriesData);
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -147,7 +141,7 @@ export default function ProductsScreen() {
   }, [searchQuery, selectedCategory, products, sortBy]);
 
   const handleAddProduct = () => {
-    console.log('Navigating to ProductForm with mode: add');
+
     console.log('Navigation state:', navigation.getState());
     try {
       navigation.navigate('ProductForm', { mode: 'add' });
@@ -158,7 +152,7 @@ export default function ProductsScreen() {
   };
 
   const handleEditProduct = (product) => {
-    console.log('Navigating to ProductForm with mode: edit, product:', product.id);
+
     try {
       navigation.navigate('ProductForm', { mode: 'edit', product });
     } catch (error) {
@@ -168,7 +162,7 @@ export default function ProductsScreen() {
   };
 
   const handleViewProduct = (product) => {
-    console.log('Navigating to ProductDetail with productId:', product.id);
+
     try {
       navigation.navigate('ProductDetail', { productId: product.id });
     } catch (error) {

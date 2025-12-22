@@ -10,15 +10,6 @@ const SUPABASE_ANON_KEY = Constants.expoConfig?.extra?.supabaseAnonKey ||
                           process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 
                           'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzdHhvdGhram9zb2hjcXFjcXlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM4OTc2ODcsImV4cCI6MjA0OTQ3MzY4N30.Q-FKR-xHRCxb7GnXSTU5zfAXfOlgIhzGGb1UjWm_IiI';
 
-// Log configuration in development
-if (__DEV__) {
-  console.log('🔧 Supabase Config:', {
-    url: SUPABASE_URL,
-    keyPreview: SUPABASE_ANON_KEY.substring(0, 20) + '...',
-    source: Constants.expoConfig?.extra?.supabaseAnonKey ? 'app.config.js' : 'fallback'
-  });
-}
-
 // Initialize Supabase client
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -32,8 +23,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
  */
 export const uploadImage = async (uri, bucket, folder, filename) => {
   try {
-    console.log('Starting upload:', { uri, bucket, folder, filename });
-    
+
     // Generate file path
     const filePath = `${folder}/${filename}`;
     
@@ -42,9 +32,7 @@ export const uploadImage = async (uri, bucket, folder, filename) => {
     const lowerUri = uri.toLowerCase();
     if (lowerUri.includes('.png')) contentType = 'image/png';
     else if (lowerUri.includes('.jpg') || lowerUri.includes('.jpeg')) contentType = 'image/jpeg';
-    
-    console.log('Preparing upload:', { bucket, filePath, contentType });
-    
+
     // For React Native, we need to use FormData or direct file upload
     // Create file data for upload
     const fileExt = contentType === 'image/png' ? 'png' : 'jpg';
@@ -58,8 +46,7 @@ export const uploadImage = async (uri, bucket, folder, filename) => {
     
     const arrayBuffer = await response.arrayBuffer();
     const fileSize = arrayBuffer.byteLength;
-    console.log('File loaded:', { size: fileSize, type: contentType });
-    
+
     // Upload to Supabase Storage using ArrayBuffer
     const { data, error } = await supabase.storage
       .from(bucket)
@@ -73,14 +60,10 @@ export const uploadImage = async (uri, bucket, folder, filename) => {
       return { success: false, error: `Upload failed: ${error.message}` };
     }
 
-    console.log('Upload successful:', data);
-
     // Get public URL
     const { data: urlData } = supabase.storage
       .from(bucket)
       .getPublicUrl(filePath);
-
-    console.log('Public URL generated:', urlData.publicUrl);
 
     return {
       success: true,
@@ -102,8 +85,7 @@ export const uploadImage = async (uri, bucket, folder, filename) => {
  */
 export const uploadMultipleImages = async (uris, bucket, folder, prefix) => {
   try {
-    console.log('Starting multiple image upload:', { count: uris.length, bucket, folder, prefix });
-    
+
     const uploadPromises = uris.map((uri, index) => {
       // Generate unique filename with timestamp and index
       const timestamp = Date.now();
@@ -124,8 +106,7 @@ export const uploadMultipleImages = async (uris, bucket, folder, prefix) => {
     }
 
     const urls = results.map(r => r.url);
-    console.log('All uploads successful:', urls);
-    
+
     return {
       success: true,
       urls,

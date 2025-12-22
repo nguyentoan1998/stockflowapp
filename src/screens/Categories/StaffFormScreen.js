@@ -1,132 +1,116 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
-  StyleSheet,
+  Text,
   ScrollView,
+  TextInput,
   TouchableOpacity,
+  StyleSheet,
   Image,
-  Animated,
-  KeyboardAvoidingView,
-  Platform,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
-import { Text, TextInput } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useApi } from '../../contexts/ApiContext';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { uploadImage, uploadMultipleImages } from '../../services/supabase';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useApi } from '../../contexts/ApiContext';
+import { uploadImage } from '../../services/supabase';
 import CustomAlert from '../../components/CustomAlert';
 import { createAlertHelper } from '../../utils/alertHelper';
 
-export default function StaffFormScreen({ route, navigation }) {
-  const { 
-    staffMember, 
-    positions = [], 
-    departments = [],
-    isModal = false,
-    onClose = null 
-  } = route.params || {};
-  const isEditMode = !!staffMember;
+export default function StaffFormScreen() {
+  const navigation = useNavigation();
+  const route = useRoute();
   const { api } = useApi();
-
-  // Form state
-  const [formData, setFormData] = useState({
-    full_name: staffMember?.full_name || staffMember?.name || '',
-    sex: staffMember?.sex || 'Nam',
-    date: staffMember?.date || '',
-    cmt: staffMember?.cmt || '',
-    address: staffMember?.address || '',
-    phone: staffMember?.phone || '',
-    email: staffMember?.email || '',
-    position_id: staffMember?.position_id || null,
-    team_id: staffMember?.team_id || null,
-    statuss: staffMember?.statuss || 'Học việc',
-    image_url: staffMember?.image_url || '',
-    image_cmt: staffMember?.image_cmt || '',
-  });
+  
+  const { mode, staff } = route.params || { mode: 'add' };
+  const isEditMode = mode === 'edit';
 
   // Custom Alert
   const [alertConfig, setAlertConfig] = useState({ visible: false });
   const Alert = createAlertHelper(setAlertConfig);
 
-  const [loading, setLoading] = useState(false);
-  const [showPositionPicker, setShowPositionPicker] = useState(false);
-  const [showDepartmentPicker, setShowDepartmentPicker] = useState(false);
-  const [showStatusPicker, setShowStatusPicker] = useState(false);
-  const [showGenderPicker, setShowGenderPicker] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState('');
+  // Form data - match database schema
+  const [formData, setFormData] = useState({
+    full_name: '',
+    email: '',
+    phone: '',
+    address: '',
+    date: '', // date of birth in schema
+    cmt: '', // ID card number
+    sex: 'Nam', // Gender
+    position_id: null,
+    team_id: null,
+    statuss: 'Chính thức',
+    image_url: '',
+  });
 
-  // Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
+  // Dropdowns data
+  const [positions, setPositions] = useState([]);
+  const [teams, setTeams] = useState([]);
+  
+  // UI states
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  
+  // Modal states for custom pickers
+  const [showPositionPicker, setShowPositionPicker] = useState(false);
+  const [showTeamPicker, setShowTeamPicker] = useState(false);
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
+
+  // Status options
+  const statusOptions = [
+    { value: 'Chính thức', label: 'Chính thức', icon: 'checkmark-circle', color: '#4CAF50' },
+    { value: 'Học việc', label: 'Học việc', icon: 'school', color: '#2196F3' },
+    { value: 'Nghỉ việc', label: 'Nghỉ việc', icon: 'close-circle', color: '#F44336' },
+  ];
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        friction: 8,
-        tension: 50,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    loadData();
   }, []);
 
-  const updateField = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const formatDateToDMY = (dateString) => {
-    if (!dateString) return '';
+  const loadData = async () => {
     try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return '';
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
-      return `${day}-${month}-${year}`;
-    } catch (e) {
-      return '';
-    }
-  };
+      setLoading(true);
+      
+      // Load positions and teams
+      const [positionsRes, teamsRes] = await Promise.all([
+        api.get('/api/positions'),
+        api.get('/api/teams')
+      ]);
 
-  const formatDateToYMD = (dateString) => {
-    if (!dateString) return null;
-    try {
-      // If already in YYYY-MM-DD format, return as is
-      if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-        return dateString;
+      const positionsData = Array.isArray(positionsRes.data) 
+        ? positionsRes.data 
+        : (positionsRes.data?.positions || positionsRes.data?.data || []);
+      const teamsData = Array.isArray(teamsRes.data) 
+        ? teamsRes.data 
+        : (teamsRes.data?.teams || teamsRes.data?.data || []);
+
+      setPositions(positionsData);
+      setTeams(teamsData);
+
+      // If edit mode, load staff data
+      if (isEditMode && staff) {
+        setFormData({
+          full_name: staff.full_name || '',
+          email: staff.email || '',
+          phone: staff.phone || '',
+          address: staff.address || '',
+          date: staff.date ? new Date(staff.date).toISOString().split('T')[0] : '',
+          cmt: staff.cmt || '',
+          sex: staff.sex || 'Nam',
+          position_id: staff.position_id || null,
+          team_id: staff.team_id || null,
+          statuss: staff.statuss || 'Chính thức',
+          image_url: staff.image_url || '',
+        });
       }
-      
-      // If in DD-MM-YYYY format, convert
-      const parts = dateString.split('-');
-      if (parts.length === 3 && parts[0].length <= 2) {
-        const day = parts[0].padStart(2, '0');
-        const month = parts[1].padStart(2, '0');
-        const year = parts[2];
-        return `${year}-${month}-${day}`;
-      }
-      
-      // Try to parse as date
-      const date = new Date(dateString);
-      if (!isNaN(date.getTime())) {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      }
-      
-      return null;
-    } catch (e) {
-      console.error('Date format error:', e);
-      return null;
+    } catch (error) {
+      console.error('Error loading data:', error);
+      Alert.error('Lỗi', 'Không thể tải dữ liệu');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -140,530 +124,453 @@ export default function StaffFormScreen({ route, navigation }) {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      aspect: [3, 4],
+      aspect: [1, 1],
       quality: 0.8,
     });
 
     if (!result.canceled) {
-      updateField('image_url', result.assets[0].uri);
+      setFormData({ ...formData, image_url: result.assets[0].uri });
     }
   };
 
-  const pickCMTImages = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.error('Lỗi', 'Cần quyền truy cập thư viện ảnh');
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      const images = result.assets.map(asset => asset.uri).join(',');
-      updateField('image_cmt', images);
-    }
-  };
-
-  const handleSave = async () => {
+  const handleSubmit = async () => {
     // Validation
-    if (!formData.full_name || !formData.full_name.trim()) {
-      Alert.error('Lỗi', 'Vui lòng nhập tên nhân viên');
+    if (!formData.full_name.trim()) {
+      Alert.error('Lỗi', 'Vui lòng nhập họ và tên');
       return;
     }
 
-    setLoading(true);
+    setSaving(true);
+
     try {
+      // Upload image if it's a local file
       let uploadedImageUrl = formData.image_url;
-      let uploadedCmtImages = formData.image_cmt;
-
-      // Upload avatar image if new (local URI)
       if (formData.image_url && formData.image_url.startsWith('file://')) {
-        setUploadProgress('Đang upload ảnh đại diện...');
-        const staffId = staffMember?.id || Date.now();
-        const filename = `employee_${staffId}_${Date.now()}.jpg`;
-        const result = await uploadImage(formData.image_url, 'images', 'employees', filename);
+        setImageUploading(true);
+        const timestamp = Date.now();
+        const filename = `staff_${Date.now()}_${timestamp}.jpg`;
         
-        if (result.success) {
-          uploadedImageUrl = result.url;
-          console.log('Avatar uploaded:', uploadedImageUrl);
+        const uploadResult = await uploadImage(
+          formData.image_url,
+          'images',
+          'staff',
+          filename
+        );
+
+        if (uploadResult.success) {
+          uploadedImageUrl = uploadResult.url;
         } else {
-          setUploadProgress('');
-          Alert.error('Lỗi', 'Không thể upload ảnh đại diện: ' + result.error);
-          setLoading(false);
-          return;
+          Alert.warning('Cảnh báo', 'Không thể upload ảnh, sẽ lưu không có ảnh');
+          uploadedImageUrl = '';
         }
+        setImageUploading(false);
       }
 
-      // Upload CMT images if new (local URIs)
-      if (formData.image_cmt && formData.image_cmt.includes('file://')) {
-        const uris = formData.image_cmt.split(',').filter(uri => uri.trim());
-        setUploadProgress(`Đang upload ảnh CMND (${uris.length} ảnh)...`);
-        const staffId = staffMember?.id || Date.now();
-        const prefix = `cmt_${staffId}`;
-        const result = await uploadMultipleImages(uris, 'images', 'cmt', prefix);
-        
-        if (result.success) {
-          uploadedCmtImages = result.urls.join(',');
-          console.log('CMT images uploaded:', uploadedCmtImages);
-        } else {
-          setUploadProgress('');
-          Alert.error('Lỗi', 'Không thể upload ảnh CMND: ' + result.error);
-          setLoading(false);
-          return;
-        }
-      }
-
-      setUploadProgress('Đang lưu thông tin...');
-
-      // Prepare data for API - match Prisma schema exactly
+      // Prepare data for API - match Prisma schema
       const dataToSend = {
         full_name: formData.full_name.trim(),
         email: formData.email || null,
         phone: formData.phone || null,
         address: formData.address || null,
+        date: formData.date ? new Date(formData.date).toISOString() : null,
         cmt: formData.cmt || null,
-        image_cmt: uploadedCmtImages || null,
         sex: formData.sex || null,
-        date: formData.date ? new Date(formatDateToYMD(formData.date)).toISOString() : null,
-        statuss: formData.statuss || 'Học việc',
-        image_url: uploadedImageUrl || null,
         position_id: formData.position_id || null,
         team_id: formData.team_id || null,
+        statuss: formData.statuss,
+        image_url: uploadedImageUrl || null,
       };
 
-      console.log('Sending data:', dataToSend);
-
-      let response;
       if (isEditMode) {
-        response = await api.put(`/api/staff/${staffMember.id}`, dataToSend);
-        console.log('Update response:', response.data);
+        await api.put(`/api/staff/${staff.id}`, dataToSend);
+        Alert.success(
+          'Cập nhật thành công!', 
+          `Nhân viên "${formData.full_name}" đã được cập nhật`,
+          () => navigation.goBack()
+        );
       } else {
-        response = await api.post('/api/staff', dataToSend);
-        console.log('Create response:', response.data);
+        await api.post('/api/staff', dataToSend);
+        Alert.success(
+          'Thêm mới thành công!', 
+          `Nhân viên "${formData.full_name}" đã được thêm vào hệ thống`,
+          () => navigation.goBack()
+        );
       }
-      
-      // Show success message and navigate back
-      setShowSuccessMessage(true);
-      setTimeout(() => {
-        if (isModal && onClose) {
-          // Modal mode: just close
-          onClose();
-        } else {
-          // Navigation mode: pop screens
-          if (isEditMode) {
-            navigation.pop(2);
-          } else {
-            navigation.pop(1);
-          }
-        }
-      }, 1500);
     } catch (error) {
-      console.error('Save error:', error);
-      console.error('Error response:', error.response?.data);
-      const errorMessage = error.response?.data?.message || 
-                          error.response?.data?.error || 
-                          error.message || 
-                          'Không thể lưu thông tin';
-      Alert.error('Lỗi', errorMessage);
+      console.error('Error saving staff:', error);
+      console.error('Error details:', error.response?.data);
+      Alert.error(
+        'Lỗi',
+        error.response?.data?.message || error.response?.data?.error || 'Không thể lưu thông tin nhân viên'
+      );
     } finally {
-      setLoading(false);
-      setUploadProgress('');
+      setSaving(false);
+      setImageUploading(false);
     }
   };
 
-  const getStatusConfig = (status) => {
-    const configs = {
-      'Chính thức': { color: '#4CAF50', icon: 'check-circle' },
-      'Học việc': { color: '#2196F3', icon: 'school' },
-      'Nghỉ việc': { color: '#F44336', icon: 'close-circle' },
-    };
-    return configs[status] || { color: '#007AFF', icon: 'help-circle' };
-  };
-
-  const statusConfig = getStatusConfig(formData.statuss);
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Đang tải...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <CustomAlert {...alertConfig} />
-      
-      {/* Simple Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => {
-            if (isModal && onClose) {
-              onClose();
-            } else {
-              navigation.goBack();
-            }
-          }}
-        >
-          <Icon name="arrow-back" size={24} color="#000" />
-        </TouchableOpacity>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Image Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Ảnh đại diện</Text>
+          <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
+            {formData.image_url ? (
+              <Image source={{ uri: formData.image_url }} style={styles.image} />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="camera" size={40} color="#ccc" />
+                <Text style={styles.imagePlaceholderText}>Chọn ảnh</Text>
+              </View>
+            )}
+            {imageUploading && (
+              <View style={styles.imageOverlay}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={styles.uploadingText}>Đang upload...</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
 
-        <Text style={styles.headerTitle}>
-          {isEditMode ? 'Chỉnh sửa nhân viên' : 'Thêm nhân viên mới'}
-        </Text>
+        {/* Basic Info */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Thông tin cơ bản</Text>
+          
+          <Text style={styles.label}>Họ và tên *</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.full_name}
+            onChangeText={(text) => setFormData({ ...formData, full_name: text })}
+            placeholder="VD: Nguyễn Văn A"
+          />
 
-        <View style={{width: 24}} />
-      </View>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.email}
+            onChangeText={(text) => setFormData({ ...formData, email: text })}
+            placeholder="email@company.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
 
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}
-      >
+          <Text style={styles.label}>Số điện thoại</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.phone}
+            onChangeText={(text) => setFormData({ ...formData, phone: text })}
+            placeholder="0901234567"
+            keyboardType="phone-pad"
+          />
 
-        <Animated.View
-          style={[
-            styles.content,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <ScrollView 
-            style={styles.scrollView}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Thông tin cơ bản */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Thông tin cơ bản</Text>
+          <Text style={styles.label}>Địa chỉ</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={formData.address}
+            onChangeText={(text) => setFormData({ ...formData, address: text })}
+            placeholder="Địa chỉ nhà"
+            multiline
+            numberOfLines={3}
+          />
 
-              <TextInput
-                label="Họ và tên *"
-                value={formData.full_name}
-                onChangeText={(text) => updateField('full_name', text)}
-                style={styles.input}
-                mode="outlined"
-                outlineColor="#e0e0e0"
-                activeOutlineColor={statusConfig.color}
-                left={<TextInput.Icon icon="account" />}
-              />
+          <Text style={styles.label}>Ngày sinh (YYYY-MM-DD)</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.date}
+            onChangeText={(text) => setFormData({ ...formData, date: text })}
+            placeholder="1990-01-01"
+          />
 
-              <TouchableOpacity 
-                style={styles.pickerButton}
-                onPress={() => setShowGenderPicker(!showGenderPicker)}
-              >
-                <Icon name="gender-male-female" size={20} color="#666" />
-                <Text style={styles.pickerButtonText}>
-                  Giới tính: {formData.sex}
-                </Text>
-                <Icon name="chevron-down" size={20} color="#666" />
-              </TouchableOpacity>
+          <Text style={styles.label}>Số CMND/CCCD</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.cmt}
+            onChangeText={(text) => setFormData({ ...formData, cmt: text })}
+            placeholder="123456789"
+            keyboardType="number-pad"
+          />
 
-              {showGenderPicker && (
-                <View style={styles.pickerOptions}>
-                  {['Nam', 'Nữ'].map((gender) => (
-                    <TouchableOpacity
-                      key={gender}
-                      style={styles.pickerOption}
-                      onPress={() => {
-                        updateField('sex', gender);
-                        setShowGenderPicker(false);
-                      }}
-                    >
-                      <View style={styles.statusOption}>
-                        <Icon 
-                          name={gender === 'Nam' ? 'gender-male' : 'gender-female'} 
-                          size={20} 
-                          color={gender === 'Nam' ? '#2196F3' : '#E91E63'} 
-                        />
-                        <Text style={styles.pickerOptionText}>{gender}</Text>
-                      </View>
-                      {formData.sex === gender && (
-                        <Icon name="check" size={20} color={statusConfig.color} />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              <TextInput
-                label="Ngày sinh (DD-MM-YYYY)"
-                value={formData.date ? formatDateToDMY(formData.date) : ''}
-                onChangeText={(text) => {
-                  // Store the formatted value directly
-                  if (text.length === 0) {
-                    updateField('date', null);
-                  } else {
-                    // Just store DD-MM-YYYY format, convert on save
-                    updateField('date', text);
-                  }
-                }}
-                onBlur={() => {
-                  // Validate and convert on blur
-                  if (formData.date) {
-                    const converted = formatDateToYMD(formData.date);
-                    if (converted) {
-                      updateField('date', converted);
-                    }
-                  }
-                }}
-                style={styles.input}
-                mode="outlined"
-                placeholder="10-07-1998"
-                keyboardType="numeric"
-                outlineColor="#e0e0e0"
-                activeOutlineColor={statusConfig.color}
-                left={<TextInput.Icon icon="calendar" />}
-              />
-
-              {/* Avatar Image */}
-              <TouchableOpacity 
-                style={styles.imagePickerButton}
-                onPress={pickImage}
-              >
-                <Icon name="camera" size={20} color="#666" />
-                <Text style={styles.pickerButtonText}>
-                  {formData.image_url ? 'Ảnh đại diện đã chọn' : 'Chọn ảnh đại diện'}
-                </Text>
-                {formData.image_url && (
-                  <Image source={{ uri: formData.image_url }} style={styles.imagePreview} />
-                )}
-              </TouchableOpacity>
-
-              {/* CMT Images */}
-              <TouchableOpacity 
-                style={styles.imagePickerButton}
-                onPress={pickCMTImages}
-              >
-                <Icon name="card-account-details" size={20} color="#666" />
-                <Text style={styles.pickerButtonText}>
-                  {formData.image_cmt ? `Ảnh CMND (${formData.image_cmt.split(',').length})` : 'Chọn ảnh CMND (nhiều ảnh)'}
-                </Text>
-              </TouchableOpacity>
-
-              {formData.image_cmt && (
-                <View style={styles.imageGrid}>
-                  {formData.image_cmt.split(',').map((uri, index) => (
-                    <Image key={index} source={{ uri }} style={styles.cmtImage} />
-                  ))}
-                </View>
-              )}
-
-              <TextInput
-                label="CMND/CCCD"
-                value={formData.cmt}
-                onChangeText={(text) => updateField('cmt', text)}
-                style={styles.input}
-                mode="outlined"
-                keyboardType="numeric"
-                outlineColor="#e0e0e0"
-                activeOutlineColor={statusConfig.color}
-                left={<TextInput.Icon icon="card-account-details" />}
-              />
-
-              <TextInput
-                label="Địa chỉ"
-                value={formData.address}
-                onChangeText={(text) => updateField('address', text)}
-                style={styles.input}
-                mode="outlined"
-                multiline
-                numberOfLines={2}
-                outlineColor="#e0e0e0"
-                activeOutlineColor={statusConfig.color}
-                left={<TextInput.Icon icon="map-marker" />}
-              />
-            </View>
-
-            {/* Thông tin liên hệ */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Thông tin liên hệ</Text>
-
-              <TextInput
-                label="Số điện thoại"
-                value={formData.phone}
-                onChangeText={(text) => updateField('phone', text)}
-                style={styles.input}
-                mode="outlined"
-                keyboardType="phone-pad"
-                outlineColor="#e0e0e0"
-                activeOutlineColor={statusConfig.color}
-                left={<TextInput.Icon icon="phone" />}
-              />
-
-              <TextInput
-                label="Email"
-                value={formData.email}
-                onChangeText={(text) => updateField('email', text)}
-                style={styles.input}
-                mode="outlined"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                outlineColor="#e0e0e0"
-                activeOutlineColor={statusConfig.color}
-                left={<TextInput.Icon icon="email" />}
-              />
-            </View>
-
-            {/* Thông tin công việc */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Thông tin công việc</Text>
-
-              <TouchableOpacity 
-                style={styles.pickerButton}
-                onPress={() => setShowPositionPicker(!showPositionPicker)}
-              >
-                <Icon name="briefcase" size={20} color="#666" />
-                <Text style={styles.pickerButtonText}>
-                  {formData.position_id 
-                    ? positions.find(p => p.id === formData.position_id)?.name || 'Chọn chức vụ'
-                    : 'Chọn chức vụ'}
-                </Text>
-                <Icon name="chevron-down" size={20} color="#666" />
-              </TouchableOpacity>
-
-              {showPositionPicker && (
-                <View style={styles.pickerOptions}>
-                  {positions.map((position) => (
-                    <TouchableOpacity
-                      key={position.id}
-                      style={styles.pickerOption}
-                      onPress={() => {
-                        updateField('position_id', position.id);
-                        setShowPositionPicker(false);
-                      }}
-                    >
-                      <Text style={styles.pickerOptionText}>{position.name}</Text>
-                      {formData.position_id === position.id && (
-                        <Icon name="check" size={20} color={statusConfig.color} />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              <TouchableOpacity 
-                style={styles.pickerButton}
-                onPress={() => setShowDepartmentPicker(!showDepartmentPicker)}
-              >
-                <Icon name="account-group" size={20} color="#666" />
-                <Text style={styles.pickerButtonText}>
-                  {formData.team_id 
-                    ? departments.find(d => d.id === formData.team_id)?.name || 'Chọn phòng ban'
-                    : 'Chọn phòng ban'}
-                </Text>
-                <Icon name="chevron-down" size={20} color="#666" />
-              </TouchableOpacity>
-
-              {showDepartmentPicker && (
-                <View style={styles.pickerOptions}>
-                  {departments.map((dept) => (
-                    <TouchableOpacity
-                      key={dept.id}
-                      style={styles.pickerOption}
-                      onPress={() => {
-                        updateField('team_id', dept.id);
-                        setShowDepartmentPicker(false);
-                      }}
-                    >
-                      <Text style={styles.pickerOptionText}>{dept.name}</Text>
-                      {formData.team_id === dept.id && (
-                        <Icon name="check" size={20} color={statusConfig.color} />
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-
-              <TouchableOpacity 
-                style={styles.pickerButton}
-                onPress={() => setShowStatusPicker(!showStatusPicker)}
-              >
-                <Icon name={statusConfig.icon} size={20} color={statusConfig.color} />
-                <Text style={styles.pickerButtonText}>{formData.statuss}</Text>
-                <Icon name="chevron-down" size={20} color="#666" />
-              </TouchableOpacity>
-
-              {showStatusPicker && (
-                <View style={styles.pickerOptions}>
-                  {['Chính thức', 'Học việc', 'Nghỉ việc'].map((status) => {
-                    const config = getStatusConfig(status);
-                    return (
-                      <TouchableOpacity
-                        key={status}
-                        style={styles.pickerOption}
-                        onPress={() => {
-                          updateField('statuss', status);
-                          setShowStatusPicker(false);
-                        }}
-                      >
-                        <View style={styles.statusOption}>
-                          <Icon name={config.icon} size={18} color={config.color} />
-                          <Text style={styles.pickerOptionText}>{status}</Text>
-                        </View>
-                        {formData.statuss === status && (
-                          <Icon name="check" size={20} color={config.color} />
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-
-            <View style={{ height: 40 }} />
-          </ScrollView>
-        </Animated.View>
-      </KeyboardAvoidingView>
-
-      {/* Loading Overlay */}
-      {loading && (
-        <View style={styles.loadingOverlay}>
-          <View style={styles.loadingCard}>
-            <LinearGradient
-              colors={['#667eea', '#764ba2']}
-              style={styles.loadingGradient}
+          <Text style={styles.label}>Giới tính</Text>
+          <View style={styles.genderContainer}>
+            <TouchableOpacity
+              style={[styles.genderButton, formData.sex === 'Nam' && styles.genderButtonActive]}
+              onPress={() => setFormData({ ...formData, sex: 'Nam' })}
             >
-              <Icon name="loading" size={48} color="#fff" />
-              <Text style={styles.loadingText}>{uploadProgress || 'Đang xử lý...'}</Text>
-            </LinearGradient>
+              <Text style={[styles.genderText, formData.sex === 'Nam' && styles.genderTextActive]}>
+                Nam
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.genderButton, formData.sex === 'Nữ' && styles.genderButtonActive]}
+              onPress={() => setFormData({ ...formData, sex: 'Nữ' })}
+            >
+              <Text style={[styles.genderText, formData.sex === 'Nữ' && styles.genderTextActive]}>
+                Nữ
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
-      )}
 
-      {/* Success Message Overlay */}
-      {showSuccessMessage && (
-        <Animated.View style={styles.successOverlay}>
-          <View style={styles.successCard}>
-            <View style={styles.successIconContainer}>
-              <Icon name="check-circle" size={64} color="#4CAF50" />
-            </View>
-            <Text style={styles.successTitle}>
-              {isEditMode ? 'Cập nhật thành công!' : 'Thêm mới thành công!'}
-            </Text>
-            <Text style={styles.successMessage}>
-              Đang quay lại...
-            </Text>
-          </View>
-        </Animated.View>
-      )}
+        {/* Work Info */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Thông tin công việc</Text>
 
-      {/* Fixed Footer with Save Button */}
-      <View style={styles.footer}>
+          {/* Position Picker */}
+          <Text style={styles.label}>Chức vụ</Text>
+          <TouchableOpacity
+            style={styles.selectButton}
+            onPress={() => setShowPositionPicker(true)}
+          >
+            <Ionicons name="briefcase" size={20} color="#666" />
+            <Text style={[styles.selectText, !formData.position_id && styles.selectPlaceholder]}>
+              {formData.position_id
+                ? positions.find(p => p.id === formData.position_id)?.name || 'Chọn chức vụ'
+                : 'Chọn chức vụ'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#999" />
+          </TouchableOpacity>
+
+          {/* Team Picker */}
+          <Text style={styles.label}>Đội nhóm</Text>
+          <TouchableOpacity
+            style={styles.selectButton}
+            onPress={() => setShowTeamPicker(true)}
+          >
+            <Ionicons name="people" size={20} color="#666" />
+            <Text style={[styles.selectText, !formData.team_id && styles.selectPlaceholder]}>
+              {formData.team_id
+                ? teams.find(t => t.id === formData.team_id)?.name || 'Chọn đội nhóm'
+                : 'Chọn đội nhóm'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#999" />
+          </TouchableOpacity>
+
+          {/* Status Picker */}
+          <Text style={styles.label}>Trạng thái</Text>
+          <TouchableOpacity
+            style={styles.selectButton}
+            onPress={() => setShowStatusPicker(true)}
+          >
+            <Ionicons 
+              name={statusOptions.find(s => s.value === formData.statuss)?.icon || 'checkmark-circle'} 
+              size={20} 
+              color={statusOptions.find(s => s.value === formData.statuss)?.color || '#666'} 
+            />
+            <Text style={styles.selectText}>{formData.statuss}</Text>
+            <Ionicons name="chevron-down" size={20} color="#999" />
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      {/* Action Buttons */}
+      <View style={styles.actionContainer}>
         <TouchableOpacity
-          style={[styles.saveButtonFooter, loading && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={loading}
+          style={[styles.button, styles.cancelButton]}
+          onPress={() => navigation.goBack()}
+          disabled={saving}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" size="small" />
+          <Text style={styles.cancelButtonText}>Hủy</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, styles.saveButton]}
+          onPress={handleSubmit}
+          disabled={saving || imageUploading}
+        >
+          {saving ? (
+            <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <>
-              <Icon name="checkmark" size={24} color="#fff" />
-              <Text style={styles.saveButtonText}>
-                {isEditMode ? 'Cập nhật' : 'Thêm mới'}
-              </Text>
-            </>
+            <Text style={styles.saveButtonText}>
+              {isEditMode ? 'Cập nhật' : 'Thêm mới'}
+            </Text>
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Position Picker Modal */}
+      <Modal
+        visible={showPositionPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPositionPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Chọn chức vụ</Text>
+              <TouchableOpacity onPress={() => setShowPositionPicker(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              <TouchableOpacity
+                style={[
+                  styles.modalItem,
+                  formData.position_id === null && styles.modalItemSelected
+                ]}
+                onPress={() => {
+                  setFormData({ ...formData, position_id: null });
+                  setShowPositionPicker(false);
+                }}
+              >
+                <Text style={[
+                  styles.modalItemText,
+                  formData.position_id === null && styles.modalItemTextSelected
+                ]}>
+                  Chưa có chức vụ
+                </Text>
+                {formData.position_id === null && (
+                  <Ionicons name="checkmark" size={24} color="#4CAF50" />
+                )}
+              </TouchableOpacity>
+              {positions.map(position => (
+                <TouchableOpacity
+                  key={position.id}
+                  style={[
+                    styles.modalItem,
+                    formData.position_id === position.id && styles.modalItemSelected
+                  ]}
+                  onPress={() => {
+                    setFormData({ ...formData, position_id: position.id });
+                    setShowPositionPicker(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.modalItemText,
+                    formData.position_id === position.id && styles.modalItemTextSelected
+                  ]}>
+                    {position.name}
+                  </Text>
+                  {formData.position_id === position.id && (
+                    <Ionicons name="checkmark" size={24} color="#4CAF50" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Team Picker Modal */}
+      <Modal
+        visible={showTeamPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTeamPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Chọn đội nhóm</Text>
+              <TouchableOpacity onPress={() => setShowTeamPicker(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              <TouchableOpacity
+                style={[
+                  styles.modalItem,
+                  formData.team_id === null && styles.modalItemSelected
+                ]}
+                onPress={() => {
+                  setFormData({ ...formData, team_id: null });
+                  setShowTeamPicker(false);
+                }}
+              >
+                <Text style={[
+                  styles.modalItemText,
+                  formData.team_id === null && styles.modalItemTextSelected
+                ]}>
+                  Chưa có team
+                </Text>
+                {formData.team_id === null && (
+                  <Ionicons name="checkmark" size={24} color="#4CAF50" />
+                )}
+              </TouchableOpacity>
+              {teams.map(team => (
+                <TouchableOpacity
+                  key={team.id}
+                  style={[
+                    styles.modalItem,
+                    formData.team_id === team.id && styles.modalItemSelected
+                  ]}
+                  onPress={() => {
+                    setFormData({ ...formData, team_id: team.id });
+                    setShowTeamPicker(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.modalItemText,
+                    formData.team_id === team.id && styles.modalItemTextSelected
+                  ]}>
+                    {team.name}
+                  </Text>
+                  {formData.team_id === team.id && (
+                    <Ionicons name="checkmark" size={24} color="#4CAF50" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Status Picker Modal */}
+      <Modal
+        visible={showStatusPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowStatusPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Chọn trạng thái</Text>
+              <TouchableOpacity onPress={() => setShowStatusPicker(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {statusOptions.map(status => (
+                <TouchableOpacity
+                  key={status.value}
+                  style={[
+                    styles.modalItem,
+                    formData.statuss === status.value && styles.modalItemSelected
+                  ]}
+                  onPress={() => {
+                    setFormData({ ...formData, statuss: status.value });
+                    setShowStatusPicker(false);
+                  }}
+                >
+                  <View style={styles.statusOption}>
+                    <Ionicons name={status.icon} size={20} color={status.color} />
+                    <Text style={[
+                      styles.modalItemText,
+                      formData.statuss === status.value && styles.modalItemTextSelected
+                    ]}>
+                      {status.label}
+                    </Text>
+                  </View>
+                  {formData.statuss === status.value && (
+                    <Ionicons name="checkmark" size={24} color={status.color} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -671,226 +578,235 @@ export default function StaffFormScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f5f5f5',
   },
-  flex: {
+  centerContainer: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 50,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    backgroundColor: '#f5f5f5',
   },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-  },
-  content: {
-    flex: 1,
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
   },
   scrollView: {
     flex: 1,
-    paddingBottom: 100, // Space for footer
+  },
+  scrollContent: {
+    padding: 15,
   },
   section: {
     backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+    marginTop: 8,
   },
   input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#333',
     backgroundColor: '#fff',
-    marginBottom: 16,
   },
-  pickerButton: {
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  selectButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#fff',
   },
-  pickerButtonText: {
+  selectText: {
     flex: 1,
-    marginLeft: 12,
-    fontSize: 15,
-    color: '#1a1a1a',
-    fontWeight: '500',
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 10,
   },
-  pickerOptions: {
-    backgroundColor: '#fff',
+  selectPlaceholder: {
+    color: '#999',
+  },
+  imageContainer: {
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  image: {
+    width: 200,
+    height: 200,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    marginBottom: 16,
-    overflow: 'hidden',
+    backgroundColor: '#f0f0f0',
   },
-  pickerOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  pickerOptionText: {
-    fontSize: 15,
-    color: '#1a1a1a',
-    fontWeight: '500',
-  },
-  statusOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  imagePickerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 16,
+  imagePlaceholder: {
+    width: 200,
+    height: 200,
     borderRadius: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#ddd',
     borderStyle: 'dashed',
   },
-  imagePreview: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    marginLeft: 12,
+  imagePlaceholderText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#999',
   },
-  imageGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 16,
-  },
-  cmtImage: {
-    width: 80,
-    height: 100,
-    borderRadius: 8,
-  },
-  successOverlay: {
+  imageOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000,
+    borderRadius: 12,
   },
-  successCard: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 40,
-    alignItems: 'center',
-    minWidth: 280,
-    elevation: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-  },
-  successIconContainer: {
-    marginBottom: 20,
-  },
-  successTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  successMessage: {
-    fontSize: 15,
-    color: '#666',
-    textAlign: 'center',
-  },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-  },
-  loadingCard: {
-    borderRadius: 24,
-    overflow: 'hidden',
-    elevation: 20,
-  },
-  loadingGradient: {
-    padding: 40,
-    alignItems: 'center',
-    minWidth: 280,
-  },
-  loadingText: {
-    fontSize: 16,
+  uploadingText: {
     color: '#fff',
-    marginTop: 16,
-    fontWeight: '600',
-    textAlign: 'center',
+    marginTop: 8,
+    fontSize: 14,
   },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  actionContainer: {
+    flexDirection: 'row',
+    padding: 15,
     backgroundColor: '#fff',
-    padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: '#eee',
+    elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 8,
   },
-  saveButtonFooter: {
-    flexDirection: 'row',
-    backgroundColor: '#007AFF',
-    paddingVertical: 14,
-    borderRadius: 12,
+  button: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
   },
-  saveButtonDisabled: {
-    backgroundColor: '#ccc',
+  cancelButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginRight: 8,
   },
-  saveButtonText: {
-    color: '#fff',
+  saveButton: {
+    backgroundColor: '#007AFF',
+    marginLeft: 8,
+  },
+  cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#666',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalScroll: {
+    maxHeight: 400,
+  },
+  modalItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f5f5f5',
+  },
+  modalItemSelected: {
+    backgroundColor: '#f0f9ff',
+  },
+  modalItemText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  modalItemTextSelected: {
+    fontWeight: '600',
+    color: '#4CAF50',
+  },
+  statusOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  genderContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  genderButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  genderButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  genderText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
+  },
+  genderTextActive: {
+    color: '#fff',
   },
 });

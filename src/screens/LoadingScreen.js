@@ -104,7 +104,7 @@ export default function LoadingScreen() {
         }}
       >
         <Text style={styles.title}>StockFlow</Text>
-        <Text style={styles.subtitle}>Dang tai du lieu...</Text>
+        <Text style={styles.subtitle}>Đang tải dữ liệu...</Text>
       </Animated.View>
 
       {/* Loading dots */}

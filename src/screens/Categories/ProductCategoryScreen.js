@@ -77,13 +77,7 @@ const ProductCategoryScreen = () => {
         console.log('Raw categories data:', categoriesData); // Debug log
         const validatedCategories = categoriesData.map((category, index) => {
           const categoryId = category.id || category._id || `category_${index}`;
-          console.log('Category status data:', { // Debug log
-            id: categoryId,
-            name: category.name,
-            is_active: category.is_active,
-            status: category.status,
-            statuss: category.statuss
-          });
+
           return {
             id: categoryId,
             name: category.name || category.category_name || 'Unknown',

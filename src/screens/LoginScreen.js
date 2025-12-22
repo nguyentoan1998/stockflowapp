@@ -103,6 +103,8 @@ export default function LoginScreen() {
                   onChangeText={setPassword}
                   secureTextEntry
                   icon="lock-closed-outline"
+                  onSubmitEditing={handleLogin}
+                  returnKeyType="go"
                 />
 
                 <TouchableOpacity style={styles.forgotPassword}>
@@ -121,13 +123,6 @@ export default function LoginScreen() {
               </View>
             </Card>
 
-            {/* Footer */}
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Chưa có tài khoản?</Text>
-              <TouchableOpacity>
-                <Text style={styles.signupText}> Đăng ký ngay</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

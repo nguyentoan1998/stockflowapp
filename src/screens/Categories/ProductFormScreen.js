@@ -125,11 +125,6 @@ export default function ProductFormScreen() {
         ? productsRes.data 
         : (productsRes.data?.data || []);
 
-      console.log('Categories loaded:', categoriesData.length);
-      console.log('Units loaded:', unitsData.length);
-      console.log('Warehouses loaded:', warehousesData.length);
-      console.log('Products loaded:', productsData.length);
-      
       setCategories(categoriesData);
       setUnits(unitsData);
       setWarehouses(warehousesData);
@@ -224,7 +219,7 @@ export default function ProductFormScreen() {
 
         if (uploadResult.success) {
           uploadedImageUrl = uploadResult.url;
-          console.log('Image uploaded:', uploadedImageUrl);
+
         } else {
           console.error('Image upload failed:', uploadResult.error);
           Alert.warning('Cảnh báo', 'Không thể upload ảnh, sẽ lưu không có ảnh');

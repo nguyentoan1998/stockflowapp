@@ -50,39 +50,26 @@ export default function StaffScreen() {
       
       // Load position and team names from IDs
       const [positionsRes, teamsRes] = await Promise.all([
-        api.get('/api/positions').catch((err) => { 
-          console.log('Positions error:', err);
-          return { data: [] };
-        }),
-        api.get('/api/teams').catch((err) => { 
-          console.log('Teams error:', err);
-          return { data: [] };
-        })
+        api.get('/api/positions').catch(() => ({ data: [] })),
+        api.get('/api/teams').catch(() => ({ data: [] }))
       ]);
       
       // Handle different response formats
-      const positions = Array.isArray(positionsRes.data) 
+      const positionsData = Array.isArray(positionsRes.data) 
         ? positionsRes.data 
         : (positionsRes.data?.positions || positionsRes.data?.data || []);
-      const teams = Array.isArray(teamsRes.data) 
+      const teamsData = Array.isArray(teamsRes.data) 
         ? teamsRes.data 
         : (teamsRes.data?.teams || teamsRes.data?.data || []);
-      
-      console.log('Staff data:', staffData.length, 'items');
-      console.log('Positions response:', positionsRes.data);
-      console.log('Positions array:', positions);
-      console.log('Teams response:', teamsRes.data);
-      console.log('Teams array:', teams);
-      console.log('Sample staff:', staffData[0]);
       
       // Map position and team names
       staffData = staffData.map(staff => {
         const position = staff.position_id 
-          ? positions.find(p => p.id === staff.position_id)
+          ? positionsData.find(p => p.id === staff.position_id)
           : null;
         
         const team = staff.team_id
-          ? teams.find(t => t.id === staff.team_id)
+          ? teamsData.find(t => t.id === staff.team_id)
           : null;
         
         return {
@@ -152,8 +139,8 @@ export default function StaffScreen() {
     const normalizedStatus = status?.toLowerCase();
     
     const configs = {
-      'active': { color: '#4CAF50', bg: '#E8F5E9', text: 'Chính thức', icon: 'checkmark-circle', value: 'Chính thức' },
-      'chính thức': { color: '#4CAF50', bg: '#E8F5E9', text: 'Chính thức', icon: 'checkmark-circle', value: 'Chính thức' },
+      'active': { color: '#4CAF50', bg: '#E8F5E9', text: 'Chính thức', icon: 'check-circle', value: 'Chính thức' },
+      'chính thức': { color: '#4CAF50', bg: '#E8F5E9', text: 'Chính thức', icon: 'check-circle', value: 'Chính thức' },
       'intern': { color: '#2196F3', bg: '#E3F2FD', text: 'Học việc', icon: 'school', value: 'Học việc' },
       'học việc': { color: '#2196F3', bg: '#E3F2FD', text: 'Học việc', icon: 'school', value: 'Học việc' },
       'inactive': { color: '#F44336', bg: '#FFEBEE', text: 'Nghỉ việc', icon: 'close-circle', value: 'Nghỉ việc' },
@@ -208,9 +195,6 @@ export default function StaffScreen() {
           color: statusInfo.color,
           bgColor: statusInfo.bg,
           icon: statusInfo.icon,
-        }}
-        statusDot={{
-          color: statusInfo.color,
         }}
         details={[
           {

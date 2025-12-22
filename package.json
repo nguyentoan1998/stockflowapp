@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
-    "start": "npx expo start --clear",
+    "start": "npx expo start --clear --tunnel",
     "tunnel": "expo start --tunnel",
     "tunnel:clean": "expo start --tunnel --clear",
     "android": "expo start --android",

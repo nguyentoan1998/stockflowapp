@@ -89,9 +89,6 @@ export function AuthProvider({ children }) {
     try {
       dispatch({ type: 'LOADING' });
       
-      // Debug: Log the login attempt
-      console.log('Login attempt:', { user: username, passwordLength: password?.length });
-      
       const response = await api.post('/auth/login', {
         user: username,  // Server expects 'user' field, not 'username'
         password

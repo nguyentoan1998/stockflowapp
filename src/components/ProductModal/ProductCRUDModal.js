@@ -79,7 +79,7 @@ const ProductCRUDModal = ({
       const response = await api.get('/api/product_categories');
       setCategories(response.data.data || []);
     } catch (error) {
-      console.log('Failed to load categories:', error);
+
     }
   };
 
@@ -194,7 +194,7 @@ const ProductCRUDModal = ({
       onSuccess && onSuccess(response.data);
       onDismiss();
     } catch (error) {
-      console.log('Submit error:', error);
+
       Alert.alert('Lỗi', error.response?.data?.error || 'Không thể lưu sản phẩm');
     } finally {
       setLoading(false);

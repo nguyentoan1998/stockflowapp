@@ -1,504 +1,430 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
-  StyleSheet,
+  Text,
   ScrollView,
   TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
   Image,
-  Dimensions,
-  Animated,
-  Modal,
-  useWindowDimensions,
+  RefreshControl,
 } from 'react-native';
-import { Text } from 'react-native-paper';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import StaffFormScreen from './StaffFormScreen';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useApi } from '../../contexts/ApiContext';
 import CustomAlert from '../../components/CustomAlert';
 import { createAlertHelper } from '../../utils/alertHelper';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-export default function StaffDetailScreen({ route, navigation }) {
-  const { staffMember: initialStaffMember, positions = [], departments = [] } = route.params;
-  const { width, height } = useWindowDimensions();
+export default function StaffDetailScreen() {
+  const navigation = useNavigation();
+  const route = useRoute();
   const { api } = useApi();
+  
+  const { staffId } = route.params;
+
+  const [staff, setStaff] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Custom Alert
   const [alertConfig, setAlertConfig] = useState({ visible: false });
   const Alert = createAlertHelper(setAlertConfig);
 
-  // Modal state
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [staffMember, setStaffMember] = useState(initialStaffMember);
-  const [loading, setLoading] = useState(false);
-  
-  // Hero Animations
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(height)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
-  const avatarScale = useRef(new Animated.Value(0)).current;
-  const modalSlide = useRef(new Animated.Value(height)).current;
+  useFocusEffect(
+    useCallback(() => {
+      fetchStaff();
+    }, [staffId])
+  );
 
-  // Reload staff data
-  const reloadStaffData = async () => {
+  const fetchStaff = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/api/staff/${initialStaffMember.id}`);
-      if (response.data) {
-        setStaffMember(response.data);
+      // Include relations: positions and teams
+      const include = JSON.stringify({
+        positions: true,
+        teams: true
+      });
+      const response = await api.get(`/api/staff/${staffId}?include=${encodeURIComponent(include)}`);
+      
+      // Map relations to match expected format
+      const staffData = response.data;
+      if (staffData.positions) {
+        staffData.position = staffData.positions;
       }
+      if (staffData.teams) {
+        staffData.team = staffData.teams;
+      }
+      
+      setStaff(staffData);
     } catch (error) {
-      console.error('Error reloading staff data:', error);
+      console.error('Error fetching staff:', error);
+      Alert.error('Lỗi', 'Không thể tải thông tin nhân viên', () => navigation.goBack());
     } finally {
       setLoading(false);
     }
   };
-  
-  useEffect(() => {
-    // Hero entrance animation
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        friction: 8,
-        tension: 50,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 8,
-        tension: 50,
-        useNativeDriver: true,
-      }),
-      Animated.spring(avatarScale, {
-        toValue: 1,
-        delay: 200,
-        friction: 6,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
-  
-  // Get position name from position_id
-  const positionName = staffMember.position || 
-                       (staffMember.position_id && positions.find(p => p.id === staffMember.position_id)?.name) || 
-                       '-';
-  
-  // Get department name from team_id
-  const departmentName = staffMember.department || 
-                         (staffMember.team_id && departments.find(d => d.id === staffMember.team_id)?.name) || 
-                         '-';
 
-  const getStatusConfig = (status) => {
-    const configs = {
-      'Chính thức': { color: '#4CAF50', icon: 'check-circle', label: 'Chính thức' },
-      'Học việc': { color: '#2196F3', icon: 'school', label: 'Học việc' },
-      'Nghỉ việc': { color: '#F44336', icon: 'close-circle', label: 'Nghỉ việc' },
-    };
-    return configs[status] || { color: '#9E9E9E', icon: 'help-circle', label: 'Chưa xác định' };
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchStaff();
+    setRefreshing(false);
   };
 
-  const statusConfig = getStatusConfig(staffMember.statuss);
+  const handleEdit = () => {
+    navigation.navigate('StaffForm', { mode: 'edit', staff });
+  };
+
+  const handleDelete = () => {
+    Alert.confirm(
+      'Xác nhận xóa',
+      `Bạn có chắc chắn muốn xóa nhân viên "${staff?.full_name}"?\n\nHành động này không thể hoàn tác!`,
+      async () => {
+        try {
+          await api.delete(`/api/staff/${staffId}`);
+          Alert.success(
+            'Xóa thành công!',
+            `Nhân viên "${staff?.full_name}" đã được xóa khỏi hệ thống.`,
+            () => navigation.goBack()
+          );
+        } catch (error) {
+          console.error('Error deleting staff:', error);
+          Alert.error('Lỗi', 'Không thể xóa nhân viên. Vui lòng thử lại.');
+        }
+      }
+    );
+  };
+
+  const getStatusInfo = (status) => {
+    const statusMap = {
+      'Chính thức': { color: '#4CAF50', bg: '#E8F5E9', icon: 'checkmark-circle' },
+      'Học việc': { color: '#2196F3', bg: '#E3F2FD', icon: 'school' },
+      'Nghỉ việc': { color: '#F44336', bg: '#FFEBEE', icon: 'close-circle' },
+    };
+    return statusMap[status] || statusMap['Chính thức'];
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      return new Date(dateString).toLocaleDateString('vi-VN');
+    } catch (e) {
+      return 'N/A';
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Đang tải...</Text>
+      </View>
+    );
+  }
+
+  if (!staff) {
+    return (
+      <View style={styles.centerContainer}>
+        <Ionicons name="alert-circle-outline" size={64} color="#ccc" />
+        <Text style={styles.emptyText}>Không tìm thấy nhân viên</Text>
+      </View>
+    );
+  }
+
+  const statusInfo = getStatusInfo(staff.statuss);
 
   return (
-    <Animated.View 
-      style={[
-        styles.container,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
-        },
-      ]}
-    >
+    <View style={styles.container}>
       <CustomAlert {...alertConfig} />
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        {/* Header with gradient */}
-        <LinearGradient
-          colors={[statusConfig.color, statusConfig.color + 'CC']}
-          style={styles.header}
-        >
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Icon name="arrow-left" size={24} color="#fff" />
+      
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: statusInfo.color }]}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.editButton}
-            onPress={() => {
-              setShowEditModal(true);
-              // Animate modal in
-              Animated.spring(modalSlide, {
-                toValue: 0,
-                friction: 9,
-                tension: 50,
-                useNativeDriver: true,
-              }).start();
-            }}
-          >
-            <Icon name="pencil" size={22} color="#fff" />
-          </TouchableOpacity>
-
-          <Animated.View 
-            style={[
-              styles.avatarSection,
-              { transform: [{ scale: avatarScale }] }
-            ]}
-          >
-            {staffMember.image_url ? (
-              <Image source={{ uri: staffMember.image_url }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatarPlaceholder, { backgroundColor: 'rgba(255,255,255,0.3)' }]}>
-                <Icon name="account" size={56} color="#fff" />
-              </View>
-            )}
-          </Animated.View>
-
-          <Text style={styles.name}>{staffMember.full_name || staffMember.name || 'Chưa có tên'}</Text>
-          <Text style={styles.position}>{positionName}</Text>
-
-          {/* Status Badge */}
-          <View style={styles.statusBadgeContainer}>
-            <Icon name={statusConfig.icon} size={16} color="#fff" />
-            <Text style={styles.statusBadgeText}>{statusConfig.label}</Text>
+          <View style={styles.headerTitle}>
+            <Text style={styles.headerTitleText}>{staff.full_name}</Text>
+            <Text style={styles.headerSubtitle}>
+              {staff.position?.name || 'Chưa có chức vụ'}
+            </Text>
           </View>
-        </LinearGradient>
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerButton} onPress={handleEdit}>
+            <Ionicons name="create-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerButton} onPress={handleDelete}>
+            <Ionicons name="trash-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Thông tin cá nhân */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Thông tin cá nhân</Text>
-          
-          <InfoRow 
-            icon="gender-male-female" 
-            label="Giới tính" 
-            value={staffMember.sex || '-'} 
-          />
-          <InfoRow 
-            icon="cake-variant" 
-            label="Ngày sinh" 
-            value={staffMember.date ? new Date(staffMember.date).toLocaleDateString('vi-VN') : '-'} 
-          />
-          <InfoRow 
-            icon="card-account-details" 
-            label="CMND/CCCD" 
-            value={staffMember.cmt || '-'} 
-          />
-          <InfoRow 
-            icon="map-marker" 
-            label="Địa chỉ" 
-            value={staffMember.address || '-'} 
-          />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        {/* Avatar Section */}
+        <View style={styles.avatarSection}>
+          {staff.image_url ? (
+            <Image source={{ uri: staff.image_url }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Ionicons name="person" size={80} color="#ccc" />
+            </View>
+          )}
         </View>
 
-        {/* Thông tin liên hệ */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Thông tin liên hệ</Text>
-          
-          <InfoRow 
-            icon="phone" 
-            label="Số điện thoại" 
-            value={staffMember.phone || '-'} 
-            link={staffMember.phone ? `tel:${staffMember.phone}` : null}
-          />
-          <InfoRow 
-            icon="email" 
-            label="Email" 
-            value={staffMember.email || '-'} 
-            link={staffMember.email ? `mailto:${staffMember.email}` : null}
-          />
+        {/* Status Badge */}
+        <View style={styles.statusContainer}>
+          <View style={[styles.statusBadge, { backgroundColor: statusInfo.bg }]}>
+            <Ionicons name={statusInfo.icon} size={18} color={statusInfo.color} />
+            <Text style={[styles.statusText, { color: statusInfo.color }]}>
+              {staff.statuss}
+            </Text>
+          </View>
         </View>
 
-        {/* Thông tin công việc */}
+        {/* Basic Info */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Thông tin cơ bản</Text>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Họ và tên:</Text>
+            <Text style={styles.infoValue}>{staff.full_name || 'N/A'}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Email:</Text>
+            <Text style={styles.infoValue}>{staff.email || 'N/A'}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Số điện thoại:</Text>
+            <Text style={styles.infoValue}>{staff.phone || 'N/A'}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Địa chỉ:</Text>
+            <Text style={styles.infoValue}>{staff.address || 'N/A'}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Ngày sinh:</Text>
+            <Text style={styles.infoValue}>{formatDate(staff.date)}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Giới tính:</Text>
+            <Text style={styles.infoValue}>{staff.sex || 'N/A'}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>CMND/CCCD:</Text>
+            <Text style={styles.infoValue}>{staff.cmt || 'N/A'}</Text>
+          </View>
+        </View>
+
+        {/* Work Info */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thông tin công việc</Text>
-          
-          <InfoRow 
-            icon="briefcase" 
-            label="Chức vụ" 
-            value={positionName} 
-          />
-          <InfoRow 
-            icon="account-group" 
-            label="Phòng ban" 
-            value={departmentName} 
-          />
-          <InfoRow 
-            icon="clipboard-check" 
-            label="Trạng thái" 
-            value={staffMember.statuss || '-'} 
-          />
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Chức vụ:</Text>
+            <Text style={styles.infoValue}>
+              {staff.position?.name || 'Chưa có chức vụ'}
+            </Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Đội nhóm:</Text>
+            <Text style={styles.infoValue}>
+              {staff.team?.name || 'Chưa có team'}
+            </Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Trạng thái:</Text>
+            <View style={[styles.inlineStatusBadge, { backgroundColor: statusInfo.bg }]}>
+              <Ionicons name={statusInfo.icon} size={14} color={statusInfo.color} />
+              <Text style={[styles.inlineStatusText, { color: statusInfo.color }]}>
+                {staff.statuss}
+              </Text>
+            </View>
+          </View>
         </View>
 
-        <View style={{ height: 100 }} />
+        {/* Timestamps */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Thông tin khác</Text>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Ngày tạo:</Text>
+            <Text style={styles.infoValue}>{formatDate(staff.created_at)}</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Cập nhật lần cuối:</Text>
+            <Text style={styles.infoValue}>{formatDate(staff.updated_at)}</Text>
+          </View>
+        </View>
       </ScrollView>
-
-      {/* Delete Button Only */}
-      <View style={styles.actionButtons}>
-        <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: '#F44336' }]}
-          onPress={() => {
-            Alert.confirm(
-              'Xác nhận xóa',
-              `Bạn có chắc chắn muốn xóa "${staffMember.full_name || staffMember.name}"?`,
-              async () => {
-                try {
-                  // Call delete API here if available
-                  await api.delete(`/api/staff/${staffMember.id}`);
-                  Alert.success(
-                    'Xóa thành công!',
-                    `Nhân viên "${staffMember.full_name || staffMember.name}" đã được xóa khỏi hệ thống.`,
-                    () => navigation.navigate('Staff', { refresh: Date.now() })
-                  );
-                } catch (error) {
-                  Alert.error('Lỗi', 'Không thể xóa nhân viên');
-                }
-              }
-            );
-          }}
-        >
-          <Icon name="delete" size={20} color="#fff" />
-          <Text style={styles.actionButtonText}>Xóa nhân viên</Text>
-        </TouchableOpacity>
-      </View>
-      </SafeAreaView>
-
-      {/* Edit Modal - Full Screen Responsive */}
-      <Modal
-        visible={showEditModal}
-        animationType="none"
-        transparent={true}
-        statusBarTranslucent
-        onRequestClose={() => {
-          Animated.timing(modalSlide, {
-            toValue: height,
-            duration: 300,
-            useNativeDriver: true,
-          }).start(() => setShowEditModal(false));
-        }}
-      >
-        <Animated.View 
-          style={[
-            styles.modalContainer,
-            {
-              transform: [{ translateY: modalSlide }],
-            }
-          ]}
-        >
-          <StaffFormScreen
-            route={{
-              params: {
-                staffMember,
-                positions,
-                departments,
-                isModal: true,
-                onClose: async () => {
-                  // Animate modal out
-                  Animated.timing(modalSlide, {
-                    toValue: height,
-                    duration: 300,
-                    useNativeDriver: true,
-                  }).start(async () => {
-                    setShowEditModal(false);
-                    // Reload staff data from API
-                    await reloadStaffData();
-                  });
-                },
-              }
-            }}
-            navigation={navigation}
-          />
-        </Animated.View>
-      </Modal>
-    </Animated.View>
+    </View>
   );
 }
-
-const InfoRow = ({ icon, label, value, link }) => (
-  <View style={styles.infoRow}>
-    <View style={styles.infoIcon}>
-      <Icon name={icon} size={20} color="#666" />
-    </View>
-    <View style={styles.infoContent}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
-    </View>
-  </View>
-);
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f5f5f5',
   },
-  safeArea: {
+  centerContainer: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  emptyText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#999',
   },
   header: {
-    paddingTop: 12,
-    paddingBottom: 24,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    paddingTop: 50,
+    paddingBottom: 15,
+    paddingHorizontal: 15,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
-  backButton: {
-    position: 'absolute',
-    top: 12,
-    left: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  editButton: {
-    position: 'absolute',
-    top: 12,
-    right: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  avatarSection: {
-    marginBottom: 12,
-  },
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: '#fff',
-  },
-  avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#fff',
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  position: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.9)',
-    marginBottom: 12,
-  },
-  statusBadgeContainer: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    flex: 1,
+  },
+  headerTitle: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  headerTitleText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+  },
+  headerButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 15,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  avatar: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 4,
+    borderColor: '#fff',
+    backgroundColor: '#f0f0f0',
+  },
+  avatarPlaceholder: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 4,
+    borderColor: '#fff',
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     gap: 6,
   },
-  statusBadgeText: {
-    color: '#fff',
+  statusText: {
     fontSize: 14,
     fontWeight: '600',
   },
-  content: {
-    flex: 1,
-    marginTop: -16,
-  },
   section: {
     backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 15,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1a1a1a',
-    marginBottom: 16,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
   },
   infoRow: {
     flexDirection: 'row',
-    marginBottom: 16,
-    paddingBottom: 16,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
-  },
-  infoIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-  },
-  infoContent: {
-    flex: 1,
-    justifyContent: 'center',
   },
   infoLabel: {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 4,
+    flex: 1,
+    fontSize: 14,
+    color: '#666',
   },
   infoValue: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    flex: 2,
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
   },
-  actionButtons: {
+  inlineStatusBadge: {
     flexDirection: 'row',
-    padding: 16,
-    paddingBottom: 20,
-    gap: 12,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: 12,
-    gap: 8,
+    gap: 4,
   },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 16,
+  inlineStatusText: {
+    fontSize: 12,
     fontWeight: '600',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
   },
 });
