@@ -14,6 +14,7 @@ import {
   Modal,
   TextInput,
   Switch,
+  Button,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';

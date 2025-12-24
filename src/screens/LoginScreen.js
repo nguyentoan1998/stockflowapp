@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,11 @@ import {
   Platform,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { useApi } from '../contexts/ApiContext';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
@@ -17,15 +19,67 @@ import { Colors, BorderRadius, Spacing, Typography, Shadows } from '../theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
+  const { isConnected, testConnection, baseUrl, productionUrl } = useApi();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [serverStatus, setServerStatus] = useState('checking'); // 'checking', 'connected', 'reconnecting', 'failed'
+
+  useEffect(() => {
+    checkServerConnection();
+  }, []);
+
+  const checkServerConnection = async () => {
+    setServerStatus('checking');
+    const connected = await testConnection();
+    
+    if (connected) {
+      setServerStatus('connected');
+    } else {
+      // Try to wake up server
+      setServerStatus('reconnecting');
+      await wakeUpServer();
+    }
+  };
+
+  const wakeUpServer = async () => {
+    try {
+      // Ping production server to wake it up
+      const response = await fetch('https://api.tinphatmetech.online/health', {
+        method: 'GET',
+        timeout: 10000,
+      });
+      
+      if (response.ok) {
+        // Wait a bit for server to fully start
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Test connection again
+        const connected = await testConnection();
+        setServerStatus(connected ? 'connected' : 'failed');
+      } else {
+        setServerStatus('failed');
+      }
+    } catch (error) {
+      console.error('Failed to wake up server:', error);
+      setServerStatus('failed');
+    }
+  };
+
+  const handleRetryConnection = () => {
+    checkServerConnection();
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
       setError('Vui lòng nhập email và mật khẩu');
+      return;
+    }
+
+    if (serverStatus === 'failed' || serverStatus === 'checking') {
+      setError('Vui lòng đợi kết nối với server');
       return;
     }
 
@@ -117,9 +171,56 @@ export default function LoginScreen() {
                   onPress={handleLogin}
                   loading={loading}
                   style={styles.loginButton}
+                  disabled={serverStatus === 'checking' || serverStatus === 'reconnecting'}
                 >
                   Đăng nhập
                 </Button>
+
+                {/* Server Status */}
+                <View style={styles.serverStatusContainer}>
+                  {serverStatus === 'checking' && (
+                    <View style={styles.statusRow}>
+                      <ActivityIndicator size="small" color="#666" />
+                      <Text style={styles.statusText}>Đang kiểm tra kết nối...</Text>
+                    </View>
+                  )}
+                  
+                  {serverStatus === 'reconnecting' && (
+                    <View style={styles.statusRow}>
+                      <ActivityIndicator size="small" color="#FF9800" />
+                      <Text style={[styles.statusText, { color: '#FF9800' }]}>
+                        Đang kích hoạt server...
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {serverStatus === 'connected' && (
+                    <View style={styles.statusRow}>
+                      <Ionicons name="checkmark-circle" size={18} color="#4CAF50" />
+                      <Text style={[styles.statusText, { color: '#4CAF50' }]}>
+                        Kết nối thành công
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {serverStatus === 'failed' && (
+                    <View style={styles.statusColumn}>
+                      <View style={styles.statusRow}>
+                        <Ionicons name="close-circle" size={18} color="#F44336" />
+                        <Text style={[styles.statusText, { color: '#F44336' }]}>
+                          Không thể kết nối server
+                        </Text>
+                      </View>
+                      <TouchableOpacity 
+                        style={styles.retryButton}
+                        onPress={handleRetryConnection}
+                      >
+                        <Ionicons name="refresh" size={16} color="#2196F3" />
+                        <Text style={styles.retryText}>Thử lại</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
               </View>
             </Card>
 
@@ -247,6 +348,38 @@ const styles = StyleSheet.create({
   loginButton: {
     width: '100%',
     marginTop: Spacing.md,
+  },
+  serverStatusContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusColumn: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#E3F2FD',
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  retryText: {
+    fontSize: 14,
+    color: '#2196F3',
+    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',
