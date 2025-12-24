@@ -19,7 +19,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useApi } from '../contexts/ApiContext';
-import { ModernButton } from '../components/ui/ModernButton';
 import { ModernCard, GlassCard } from '../components/ui/GradientCard';
 import { FadeIn, SlideUp, ScaleIn } from '../components/animations';
 import { Colors, Spacing, BorderRadius, Shadows, Typography } from '../theme';
@@ -331,14 +330,14 @@ export default function ProfileScreen() {
 
         {/* Logout */}
         <SlideUp delay={400}>
-          <ModernButton
-            title="Đăng xuất"
+          <Button
+            mode="outlined"
             icon="logout"
-            variant="outline"
             onPress={handleLogout}
-            fullWidth
             style={styles.logoutBtn}
-          />
+          >
+            Đăng xuất
+          </Button>
         </SlideUp>
 
         <View style={{ height: Spacing.xxl }} />
@@ -395,18 +394,21 @@ export default function ProfileScreen() {
             />
             
             <View style={styles.modalActions}>
-              <ModernButton 
-                title="Hủy" 
-                variant="ghost" 
+              <Button 
+                mode="outlined"
                 onPress={() => setShowEditModal(false)}
-                style={{ flex: 1 }}
-              />
-              <ModernButton 
-                title="Lưu" 
+                style={{ flex: 1, marginRight: 8 }}
+              >
+                Hủy
+              </Button>
+              <Button 
+                mode="contained"
                 onPress={handleEditProfile} 
                 loading={loading}
                 style={{ flex: 1 }}
-              />
+              >
+                Lưu
+              </Button>
             </View>
           </View>
         </Modal>
@@ -456,18 +458,21 @@ export default function ProfileScreen() {
             />
             
             <View style={styles.modalActions}>
-              <ModernButton 
-                title="Hủy" 
-                variant="ghost" 
+              <Button 
+                mode="outlined"
                 onPress={() => setShowPasswordModal(false)}
-                style={{ flex: 1 }}
-              />
-              <ModernButton 
-                title="Đổi mật khẩu" 
+                style={{ flex: 1, marginRight: 8 }}
+              >
+                Hủy
+              </Button>
+              <Button 
+                mode="contained"
                 onPress={handleChangePassword} 
                 loading={loading}
                 style={{ flex: 1 }}
-              />
+              >
+                Đổi mật khẩu
+              </Button>
             </View>
           </View>
         </Modal>

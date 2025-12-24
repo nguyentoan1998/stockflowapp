@@ -14,9 +14,10 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import { useApi } from '../../contexts/ApiContext';
 import CustomAlert from '../../components/CustomAlert';
 import { createAlertHelper } from '../../utils/alertHelper';
-import ProductSpecifications from '../../components/ProductSpecifications';
-import ProductUnitConversions from '../../components/ProductUnitConversions';
-import ProductBOM from '../../components/ProductBOM';
+// TODO: Implement ProductSpecifications, ProductUnitConversions, ProductBOM components
+// import ProductSpecifications from '../../components/ProductSpecifications';
+// import ProductUnitConversions from '../../components/ProductUnitConversions';
+// import ProductBOM from '../../components/ProductBOM';
 
 export default function ProductDetailScreen() {
   const navigation = useNavigation();
@@ -286,33 +287,22 @@ export default function ProductDetailScreen() {
       case 'specs':
         return (
           <View style={styles.tabContentContainer}>
-            <ProductSpecifications 
-              specifications={specifications}
-              onUpdate={handleUpdateSpecifications}
-              warehouses={warehouses}
-            />
+            <Text style={styles.comingSoonText}>Tính năng đang phát triển...</Text>
+            {/* TODO: Implement ProductSpecifications component */}
           </View>
         );
       case 'conversions':
         return (
           <View style={styles.tabContentContainer}>
-            <ProductUnitConversions 
-              conversions={unitConversions}
-              onUpdate={handleUpdateUnitConversions}
-              units={units}
-              baseUnitId={product?.base_unit_id}
-            />
+            <Text style={styles.comingSoonText}>Tính năng đang phát triển...</Text>
+            {/* TODO: Implement ProductUnitConversions component */}
           </View>
         );
       case 'bom':
         return (
           <View style={styles.tabContentContainer}>
-            <ProductBOM 
-              bom={bom}
-              onUpdate={handleUpdateBOM}
-              products={allProducts}
-              units={units}
-            />
+            <Text style={styles.comingSoonText}>Tính năng đang phát triển...</Text>
+            {/* TODO: Implement ProductBOM component */}
           </View>
         );
       default:
@@ -745,5 +735,11 @@ const styles = StyleSheet.create({
   tabContentContainer: {
     flex: 1,
     padding: 15,
+  },
+  comingSoonText: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 40,
   },
 });

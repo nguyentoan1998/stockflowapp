@@ -15,13 +15,16 @@ export function useApi() {
 export function ApiProvider({ children }) {
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [currentBaseUrl, setCurrentBaseUrl] = useState(null);
 
-  // API Configuration - Server running on localhost:3001
-  // For React Native: Use your computer's IP address, not localhost
-  // For Expo Tunnel/ngrok: Use your ngrok URL
-  const BASE_URL = __DEV__ 
-    ? process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.139:3001'  // Development - use env var or IP
-    : 'http://localhost:3001';     // Production
+  // API Configuration
+  // Priority: Production server -> Local server
+  const PRODUCTION_URL = 'https://api.tinphatmetech.online';
+  const LOCAL_URL = __DEV__ 
+    ? process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.139:3001'
+    : 'http://localhost:3001';
+  
+  const BASE_URL = currentBaseUrl || PRODUCTION_URL;
 
   // Get API key from AsyncStorage with default fallback
   const getApiKey = async () => {
@@ -81,18 +84,47 @@ export function ApiProvider({ children }) {
     }
   };
 
-  // Test connection
-  const testConnection = async () => {
+  // Test connection with fallback
+  const testConnection = async (url = null) => {
+    const testUrl = url || currentBaseUrl || PRODUCTION_URL;
+    
     try {
       setLoading(true);
-      const response = await api.get('/health');
+      const testApi = axios.create({
+        baseURL: testUrl,
+        timeout: 5000,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      });
+      
+      const apiKey = await getApiKey();
+      const response = await testApi.get('/health', {
+        headers: { 'X-API-Key': apiKey }
+      });
+      
       if (response.status === 200) {
+        // Connection successful
+        if (currentBaseUrl !== testUrl) {
+          setCurrentBaseUrl(testUrl);
+          // Update axios instance baseURL
+          api.defaults.baseURL = testUrl;
+        }
         setIsConnected(true);
         return true;
-      } else {
-        throw new Error('Health check failed');
       }
+      throw new Error('Health check failed');
     } catch (error) {
+      console.error(`Connection failed to ${testUrl}:`, error.message);
+      
+      // If production failed and we haven't tried local yet
+      if (testUrl === PRODUCTION_URL) {
+        console.warn('Production server unavailable, trying local server...');
+        return await testConnection(LOCAL_URL);
+      }
+      
+      // Both failed
       setIsConnected(false);
       return false;
     } finally {
@@ -127,7 +159,9 @@ export function ApiProvider({ children }) {
     testConnection,
     setApiKey,
     getApiKey,
-    baseUrl: BASE_URL
+    baseUrl: BASE_URL,
+    productionUrl: PRODUCTION_URL,
+    localUrl: LOCAL_URL,
   };
 
   return (

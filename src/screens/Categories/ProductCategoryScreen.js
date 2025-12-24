@@ -1,796 +1,646 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  TouchableOpacity,
-  RefreshControl,
-  Animated,
-  Easing,
-} from 'react-native';
-import {
   Text,
-  Card,
-  Button,
-  TextInput,
-  Portal,
-  Modal,
-  Chip,
-  Searchbar,
-  Menu,
-  IconButton,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
   ActivityIndicator,
-} from 'react-native-paper';
-import { MaterialCommunityIcons as Icon, Ionicons } from '@expo/vector-icons';
+  RefreshControl,
+  TextInput as RNTextInput,
+  Modal,
+  ScrollView,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useApi } from '../../contexts/ApiContext';
-import CustomDialog from '../../components/CustomDialog';
+import CustomAlert from '../../components/CustomAlert';
+import { createAlertHelper } from '../../utils/alertHelper';
+import ListCard from '../../components/ui/ListCard';
 
-const ProductCategoryScreen = () => {
+export default function ProductCategoryScreen() {
+  const navigation = useNavigation();
   const { api } = useApi();
-  
-  // State management
+
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [editingCategory, setEditingCategory] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [menuVisible, setMenuVisible] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
 
-  // Filter states
-  const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'active', 'inactive'
-  const [sortOrder, setSortOrder] = useState('asc'); // 'asc', 'desc'
+  // Modal state
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalMode, setModalMode] = useState('create'); // 'create', 'edit', 'view'
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
 
-  // Form data
+  // Form state
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
     code: '',
+    description: '',
     is_active: true,
   });
 
-  // Custom Dialog states
-  const [successDialog, setSuccessDialog] = useState({ visible: false, title: '', message: '' });
-  const [errorDialog, setErrorDialog] = useState({ visible: false, title: '', message: '' });
-  const [confirmDialog, setConfirmDialog] = useState({ 
-    visible: false, 
-    title: '', 
-    message: '', 
-    onConfirm: null 
-  });
-  
-  const [fadeAnim] = useState(new Animated.Value(0));
-  const [slideAnim] = useState(new Animated.Value(50));
+  // Custom Alert
+  const [alertConfig, setAlertConfig] = useState({ visible: false });
+  const Alert = createAlertHelper(setAlertConfig);
 
-  // Load categories
-  const loadCategories = async () => {
+  useFocusEffect(
+    useCallback(() => {
+      fetchCategories();
+    }, [])
+  );
+
+  const fetchCategories = async () => {
     try {
       setLoading(true);
       const response = await api.get('/api/product_category');
-      
-      if (response && response.data) {
-        const categoriesData = Array.isArray(response.data) 
-          ? response.data 
-          : (response.data.data && Array.isArray(response.data.data) ? response.data.data : []);
-        
-        console.log('Raw categories data:', categoriesData); // Debug log
-        const validatedCategories = categoriesData.map((category, index) => {
-          const categoryId = category.id || category._id || `category_${index}`;
-
-          return {
-            id: categoryId,
-            name: category.name || category.category_name || 'Unknown',
-            description: category.description || '',
-            code: category.code || categoryId,
-            is_active: category.is_active !== undefined ? category.is_active : true,
-            created_at: category.created_at || category.createdAt || new Date().toISOString(),
-            updated_at: category.updated_at || category.updatedAt || new Date().toISOString(),
-          };
-        });
-        setCategories(validatedCategories);
-      } else {
-        setCategories([]);
-      }
+      const categoriesData = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.data || []);
+      setCategories(categoriesData);
     } catch (error) {
-      console.error('Load categories error:', error);
-      setCategories([]);
+      console.error('Error fetching categories:', error);
+      Alert.error('Lỗi', 'Không thể tải danh sách loại sản phẩm');
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    loadCategories();
-    
-    // Entrance animations
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        easing: Easing.ease,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 800,
-        easing: Easing.out(Easing.back(1.1)),
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchCategories();
+    setRefreshing(false);
+  };
 
-  // Handlers
   const handleAdd = () => {
-    setEditingCategory(null);
     setFormData({
       name: '',
-      description: '',
       code: '',
+      description: '',
       is_active: true,
     });
-    setShowModal(true);
+    setSelectedCategory(null);
+    setModalMode('create');
+    setModalVisible(true);
   };
 
   const handleEdit = (category) => {
-    setEditingCategory(category);
     setFormData({
       name: category.name || '',
-      description: category.description || '',
       code: category.code || '',
-      is_active: category.is_active !== undefined ? category.is_active : true,
+      description: category.description || '',
+      is_active: category.is_active !== false,
     });
-    setShowModal(true);
-    setMenuVisible({});
+    setSelectedCategory(category);
+    setModalMode('edit');
+    setModalVisible(true);
   };
 
-  const handleDelete = (category) => {
-    setConfirmDialog({
-      visible: true,
-      title: '🗑️ Xác nhận xóa danh mục',
-      message: `Bạn có chắc chắn muốn xóa danh mục "${category.name}"?\n\nHành động này không thể hoàn tác!`,
-      onConfirm: () => performDelete(category)
+  const handleView = (category) => {
+    setFormData({
+      name: category.name || '',
+      code: category.code || '',
+      description: category.description || '',
+      is_active: category.is_active !== false,
     });
-    setMenuVisible({});
+    setSelectedCategory(category);
+    setModalMode('view');
+    setModalVisible(true);
   };
 
-  const performDelete = async (category) => {
-    // Optimistic delete
-    const categoryToDelete = categories.find(c => c.id === category.id);
-    setCategories(categories.filter(c => c.id !== category.id));
-    
-    try {
-      const response = await api.delete(`/api/product_category/${category.id}`);
-      if (response && (response.data.success || response.status === 200)) {
-        setSuccessDialog({
-          visible: true,
-          title: '🎉 Xóa thành công!',
-          message: 'Danh mục đã được xóa khỏi hệ thống.'
-        });
+  const handleDelete = (categoryId) => {
+    const category = categories.find(c => c.id === categoryId);
+    Alert.confirm(
+      'Xác nhận xóa',
+      `Bạn có chắc chắn muốn xóa loại sản phẩm "${category?.name}"?\n\nHành động này không thể hoàn tác!`,
+      async () => {
+        const categoryToDelete = categories.find(c => c.id === categoryId);
+        setCategories(categories.filter(c => c.id !== categoryId));
+
+        try {
+          await api.delete(`/api/product_category/${categoryId}`);
+          Alert.success(
+            'Xóa thành công!',
+            `Loại sản phẩm "${categoryToDelete?.name}" đã được xóa.`
+          );
+        } catch (error) {
+          if (categoryToDelete) {
+            setCategories(prevCategories => [...prevCategories, categoryToDelete]);
+          }
+          Alert.error('Lỗi', 'Không thể xóa loại sản phẩm. Vui lòng thử lại.');
+        }
       }
-    } catch (error) {
-      // Rollback on error
-      if (categoryToDelete) {
-        setCategories(prevCategories => [...prevCategories, categoryToDelete]);
-        setErrorDialog({
-          visible: true,
-          title: '❌ Lỗi xóa danh mục',
-          message: 'Không thể xóa danh mục. Vui lòng kiểm tra kết nối và thử lại.'
-        });
-      }
-    }
+    );
   };
 
-  const handleSave = async () => {
+  const handleModalSubmit = async () => {
+    // Validation
     if (!formData.name.trim()) {
-      setErrorDialog({
-        visible: true,
-        title: '⚠️ Thiếu thông tin',
-        message: 'Vui lòng nhập tên danh mục để tiếp tục.'
-      });
+      Alert.error('Lỗi', 'Vui lòng nhập tên loại sản phẩm');
       return;
     }
 
+    setModalLoading(true);
+
     try {
-      setLoading(true);
-      
-      const payload = {
+      const dataToSend = {
         name: formData.name.trim(),
-        description: formData.description.trim() || null,
         code: formData.code.trim() || `CAT${Date.now()}`,
+        description: formData.description || null,
         is_active: formData.is_active,
       };
 
-      if (editingCategory) {
-        // Optimistic update
-        const optimisticCategory = { ...editingCategory, ...payload };
-        setCategories(categories.map(cat => 
-          cat.id === editingCategory.id ? optimisticCategory : cat
+      if (modalMode === 'edit') {
+        await api.put(`/api/product_category/${selectedCategory.id}`, dataToSend);
+        setCategories(categories.map(c =>
+          c.id === selectedCategory.id
+            ? { ...c, ...dataToSend }
+            : c
         ));
-        setShowModal(false);
-        setEditingCategory(null);
-        
-        const response = await api.put(`/api/product_category/${editingCategory.id}`, payload);
-        if (response && (response.data.success || response.status === 200)) {
-          setSuccessDialog({
-            visible: true,
-            title: '✅ Cập nhật thành công!',
-            message: 'Thông tin danh mục đã được cập nhật.'
-          });
-        }
+        Alert.success('Cập nhật thành công!', 'Thông tin loại sản phẩm đã được cập nhật.');
       } else {
-        // Optimistic create
-        const tempId = `temp_${Date.now()}`;
-        const optimisticCategory = {
-          id: tempId,
-          ...payload,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        setCategories([...categories, optimisticCategory]);
-        setShowModal(false);
-        
-        const response = await api.post('/api/product_category', payload);
-        
-        let newCategoryData = null;
-        if (response.data?.success && response.data?.data) {
-          newCategoryData = response.data.data;
-        } else if (response.data?.id) {
-          newCategoryData = response.data;
-        } else if (response.status === 201 || response.status === 200) {
-          newCategoryData = response.data;
-        }
-        
-        if (newCategoryData) {
-          setCategories(prevCategories => prevCategories.map(cat => 
-            cat.id === tempId ? newCategoryData : cat
-          ));
-        }
-        
-        setSuccessDialog({
-          visible: true,
-          title: '🎉 Tạo danh mục thành công!',
-          message: 'Danh mục mới đã được thêm vào hệ thống.'
-        });
+        const response = await api.post('/api/product_category', dataToSend);
+        setCategories([response.data, ...categories]);
+        Alert.success('Tạo thành công!', 'Loại sản phẩm mới đã được thêm vào hệ thống.');
       }
+
+      setModalVisible(false);
+      await fetchCategories();
     } catch (error) {
-      console.error('Save category error:', error);
-      setErrorDialog({
-        visible: true,
-        title: '❌ Lỗi lưu danh mục',
-        message: 'Có lỗi xảy ra khi lưu danh mục. Vui lòng kiểm tra thông tin và thử lại.'
-      });
-      loadCategories();
+      console.error('Error saving category:', error);
+      Alert.error('Lỗi', error.response?.data?.message || 'Không thể lưu thông tin loại sản phẩm');
     } finally {
-      setLoading(false);
+      setModalLoading(false);
     }
   };
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadCategories();
+  const handleModalDismiss = () => {
+    setModalVisible(false);
+    setSelectedCategory(null);
   };
 
-  // Filter and sort categories
   const getFilteredCategories = () => {
-    let filtered = categories.filter(category => {
-      // Search filter
+    return categories.filter(category => {
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch = (
-        category.name.toLowerCase().includes(searchLower) ||
-        category.code.toLowerCase().includes(searchLower) ||
-        category.description.toLowerCase().includes(searchLower)
+        category.name?.toLowerCase().includes(searchLower) ||
+        category.code?.toLowerCase().includes(searchLower) ||
+        category.description?.toLowerCase().includes(searchLower)
       );
-      
-      // Status filter
-      let matchesStatus = true;
-      if (filterStatus === 'active') {
-        matchesStatus = category.is_active === true;
-      } else if (filterStatus === 'inactive') {
-        matchesStatus = category.is_active === false;
-      }
-      
+
+      const matchesStatus =
+        filterStatus === 'all' ||
+        (filterStatus === 'active' && category.is_active) ||
+        (filterStatus === 'inactive' && !category.is_active);
+
       return matchesSearch && matchesStatus;
     });
-    
-    // Sort by name
-    filtered.sort((a, b) => {
-      const nameA = (a.name || '').toLowerCase();
-      const nameB = (b.name || '').toLowerCase();
-      if (sortOrder === 'asc') {
-        return nameA.localeCompare(nameB, 'vi');
-      } else {
-        return nameB.localeCompare(nameA, 'vi');
-      }
-    });
-    
-    return filtered;
   };
 
-  const filteredCategories = getFilteredCategories();
+  const renderCategoryItem = ({ item: category }) => {
+    const statusConfig = category.is_active
+      ? { text: 'Hoạt động', color: '#4CAF50', bg: '#E8F5E9', icon: 'check-circle' }
+      : { text: 'Tạm dừng', color: '#FF9800', bg: '#FFF3E0', icon: 'pause-circle' };
 
-  if (loading && !refreshing) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200EE" />
-        <Text style={styles.loadingText}>Đang tải danh mục sản phẩm...</Text>
+      <ListCard
+        title={category.name}
+        subtitle={category.code}
+      imageIcon="format-list-bulleted"
+        badge={{
+          text: statusConfig.text,
+          color: statusConfig.color,
+          bgColor: statusConfig.bg,
+          icon: statusConfig.icon,
+        }}
+        details={[
+          category.description && {
+            label: 'Mô tả',
+            value: category.description,
+            icon: 'document-text-outline',
+          },
+        ].filter(Boolean)}
+        actions={[
+          {
+            label: 'Xem',
+            icon: 'eye',
+            color: '#1976d2',
+            onPress: () => handleView(category),
+          },
+          {
+            label: 'Sửa',
+            icon: 'pencil',
+            color: '#4CAF50',
+            onPress: () => handleEdit(category),
+          },
+          {
+            label: 'Xóa',
+            icon: 'delete',
+            color: '#F44336',
+            onPress: () => handleDelete(category.id),
+          },
+        ]}
+      />
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#1976d2" />
+        <Text style={styles.loadingText}>Đang tải...</Text>
       </View>
     );
   }
 
+  const filteredCategories = getFilteredCategories();
+
   return (
     <View style={styles.container}>
-      {/* Header với Search */}
-      <View style={styles.header}>
-        <Searchbar
-          placeholder="Tìm kiếm danh mục..."
-          onChangeText={setSearchQuery}
-          value={searchQuery}
-          style={styles.searchBar}
-          iconColor="#6200EE"
-        />
-      </View>
+      <CustomAlert {...alertConfig} />
 
-      {/* Filters */}
-      <View style={styles.filtersContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
-          <Chip
-            selected={filterStatus === 'all'}
-            onPress={() => setFilterStatus('all')}
-            style={[styles.filterChip, filterStatus === 'all' && styles.filterChipSelected]}
-            textStyle={filterStatus === 'all' && styles.filterChipTextSelected}
-          >
-            Tất cả ({categories.length})
-          </Chip>
-          <Chip
-            selected={filterStatus === 'active'}
-            onPress={() => setFilterStatus('active')}
-            style={[styles.filterChip, filterStatus === 'active' && styles.filterChipSelected]}
-            textStyle={filterStatus === 'active' && styles.filterChipTextSelected}
-            icon="check-circle"
-          >
-            Hoạt động ({categories.filter(c => c.is_active === true).length})
-          </Chip>
-          <Chip
-            selected={filterStatus === 'inactive'}
-            onPress={() => setFilterStatus('inactive')}
-            style={[styles.filterChip, filterStatus === 'inactive' && styles.filterChipSelected]}
-            textStyle={filterStatus === 'inactive' && styles.filterChipTextSelected}
-            icon="pause-circle"
-          >
-            Tạm dừng ({categories.filter(c => c.is_active === false).length})
-          </Chip>
-        </ScrollView>
-        
-        <TouchableOpacity
-          style={styles.sortButton}
-          onPress={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-        >
-          <Icon 
-            name={sortOrder === 'asc' ? 'sort-alphabetical-ascending' : 'sort-alphabetical-descending'} 
-            size={24} 
-            color="#6200EE" 
+      {/* Search and Filter */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
+          <RNTextInput
+            style={styles.searchInput}
+            placeholder="Tìm kiếm loại sản phẩm..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="#999"
           />
-        </TouchableOpacity>
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={20} color="#999" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterContainer}
+        >
+          <TouchableOpacity
+            style={[styles.filterChip, filterStatus === 'all' && styles.filterChipActive]}
+            onPress={() => setFilterStatus('all')}
+          >
+            <Text style={[styles.filterChipText, filterStatus === 'all' && styles.filterChipTextActive]}>
+              Tất cả ({categories.length})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterChip, filterStatus === 'active' && styles.filterChipActive]}
+            onPress={() => setFilterStatus('active')}
+          >
+            <Text style={[styles.filterChipText, filterStatus === 'active' && styles.filterChipTextActive]}>
+              Hoạt động ({categories.filter(c => c.is_active).length})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterChip, filterStatus === 'inactive' && styles.filterChipActive]}
+            onPress={() => setFilterStatus('inactive')}
+          >
+            <Text style={[styles.filterChipText, filterStatus === 'inactive' && styles.filterChipTextActive]}>
+              Tạm dừng ({categories.filter(c => !c.is_active).length})
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
 
-      {/* Categories List */}
-      <ScrollView
-        style={styles.content}
+      {/* Category List */}
+      <FlatList
+        data={filteredCategories}
+        renderItem={renderCategoryItem}
+        keyExtractor={item => item.id?.toString()}
+        contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
-      >
-        {filteredCategories.length === 0 ? (
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconContainer}>
-              <Icon name="shape-outline" size={80} color="#6200EE" />
-            </View>
-            <Text variant="headlineSmall" style={styles.emptyTitle}>
-              {searchQuery ? 'Không tìm thấy danh mục' : 'Chưa có danh mục nào'}
-            </Text>
-            <Text variant="bodyLarge" style={styles.emptySubtitle}>
-              {searchQuery ? 'Thử tìm kiếm với từ khóa khác' : 'Nhấn nút + để thêm danh mục mới'}
+            <Ionicons name="list" size={64} color="#ccc" />
+            <Text style={styles.emptyText}>
+              {searchQuery ? 'Không tìm thấy kết quả' : 'Chưa có loại sản phẩm nào'}
             </Text>
           </View>
-        ) : (
-          filteredCategories.map((category, index) => {
-            const cardAnim = new Animated.Value(0);
-            
-            // Stagger animation for each card
-            Animated.timing(cardAnim, {
-              toValue: 1,
-              duration: 600,
-              delay: index * 100,
-              easing: Easing.out(Easing.back(1.1)),
-              useNativeDriver: true,
-            }).start();
+        }
+      />
 
-            return (
-              <Animated.View
-                key={category.id}
-                style={{
-                  opacity: cardAnim,
-                  transform: [{
-                    translateY: cardAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [50, 0],
-                    }),
-                  }, {
-                    scale: cardAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.9, 1],
-                    }),
-                  }]
-                }}
-              >
-                <TouchableOpacity
-                  activeOpacity={0.95}
-                  onPressIn={() => {
-                    Animated.spring(cardAnim, {
-                      toValue: 0.95,
-                      useNativeDriver: true,
-                    }).start();
-                  }}
-                  onPressOut={() => {
-                    Animated.spring(cardAnim, {
-                      toValue: 1,
-                      useNativeDriver: true,
-                    }).start();
-                  }}
-                >
-                  <Card style={styles.categoryCard}>
-                    <Card.Content style={styles.categoryCardContent}>
-                      <View style={styles.categoryCardHeader}>
-                        <View style={styles.categoryIcon}>
-                          <Icon name="shape" size={24} color="#6200EE" />
-                        </View>
-                        <View style={styles.categoryInfo}>
-                          <Text variant="titleMedium" style={styles.categoryName}>
-                            {category.name}
-                          </Text>
-                          <Text variant="bodyMedium" style={styles.categoryCode}>
-                            #{category.code}
-                          </Text>
-                          <Text variant="bodyMedium" style={styles.categoryDescription}>
-                            {category.description || 'Chưa có mô tả'}
-                          </Text>
-                        </View>
-                        <View style={styles.categoryActions}>
-                          <Chip
-                            mode="flat"
-                            textStyle={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}
-                            style={{ 
-                              backgroundColor: category.is_active ? '#4CAF50' : '#FF5722',
-                              elevation: 2,
-                            }}
-                            icon={category.is_active ? 'check-circle' : 'pause-circle'}
-                          >
-                            {category.is_active ? 'Hoạt động' : 'Tạm dừng'}
-                          </Chip>
-                          <Menu
-                            visible={menuVisible[category.id]}
-                            onDismiss={() => setMenuVisible({...menuVisible, [category.id]: false})}
-                            anchor={
-                              <IconButton
-                                icon="dots-vertical"
-                                onPress={() => setMenuVisible({...menuVisible, [category.id]: true})}
-                                style={styles.menuButton}
-                              />
-                            }
-                          >
-                            <Menu.Item
-                              onPress={() => handleEdit(category)}
-                              title="Sửa"
-                              leadingIcon="pencil"
-                            />
-                            <Menu.Item
-                              onPress={() => handleDelete(category)}
-                              title="Xóa"
-                              leadingIcon="delete"
-                            />
-                          </Menu>
-                        </View>
-                      </View>
-                      
-                      <View style={styles.categoryStats}>
-                        <View style={styles.statChip}>
-                          <Icon name="calendar-plus" size={16} color="#FF9800" />
-                          <Text variant="bodySmall" style={styles.statText}>
-                            {new Date(category.created_at).toLocaleDateString('vi-VN')}
-                          </Text>
-                        </View>
-                      </View>
-                    </Card.Content>
-                  </Card>
-                </TouchableOpacity>
-              </Animated.View>
-            );
-          })
-        )}
-        
-        <View style={{ height: 100 }} />
-      </ScrollView>
-
-      {/* Add Button */}
-      <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
-        <Ionicons name="add" size={24} color="#fff" />
+      {/* FAB Button */}
+      <TouchableOpacity style={styles.fab} onPress={handleAdd}>
+        <LinearGradient
+          colors={['#1976d2', '#1565c0']}
+          style={styles.fabGradient}
+        >
+          <Ionicons name="add" size={28} color="#fff" />
+        </LinearGradient>
       </TouchableOpacity>
 
-      {/* Add/Edit Modal */}
-      <Portal>
-        <Modal
-          visible={showModal}
-          onDismiss={() => setShowModal(false)}
-          contentContainerStyle={styles.modal}
-        >
-          <Card>
-            <Card.Content>
-              <Text variant="titleLarge" style={styles.modalTitle}>
-                {editingCategory ? 'Sửa danh mục' : 'Thêm danh mục mới'}
+      {/* Modal */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleModalDismiss}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {/* Modal Header */}
+            <LinearGradient
+              colors={
+                modalMode === 'create' ? ['#4CAF50', '#66BB6A'] :
+                modalMode === 'edit' ? ['#2196F3', '#42A5F5'] :
+                ['#9C27B0', '#BA68C8']
+              }
+              style={styles.modalHeader}
+            >
+              <Text style={styles.modalTitle}>
+                {modalMode === 'create' ? 'Thêm loại sản phẩm' :
+                 modalMode === 'edit' ? 'Sửa loại sản phẩm' :
+                 'Chi tiết loại sản phẩm'}
               </Text>
+              <TouchableOpacity onPress={handleModalDismiss}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </LinearGradient>
 
-              <TextInput
-                label="Tên danh mục *"
+            {/* Modal Body */}
+            <ScrollView style={styles.modalBody}>
+              <Text style={styles.label}>Tên loại sản phẩm *</Text>
+              <RNTextInput
+                style={styles.input}
                 value={formData.name}
-                onChangeText={(text) => setFormData({...formData, name: text})}
-                mode="outlined"
-                style={styles.input}
-                left={<TextInput.Icon icon="shape" />}
-                placeholder="VD: Điện tử, Thực phẩm"
+                onChangeText={(text) => setFormData({ ...formData, name: text })}
+                placeholder="VD: Điện tử"
+                editable={modalMode !== 'view'}
               />
 
-              <TextInput
-                label="Mã danh mục"
+              <Text style={styles.label}>Mã loại sản phẩm</Text>
+              <RNTextInput
+                style={styles.input}
                 value={formData.code}
-                onChangeText={(text) => setFormData({...formData, code: text.toUpperCase()})}
-                mode="outlined"
-                style={styles.input}
-                left={<TextInput.Icon icon="tag" />}
-                placeholder="VD: ELEC, FOOD"
-                autoCapitalize="characters"
+                onChangeText={(text) => setFormData({ ...formData, code: text })}
+                placeholder="VD: CAT001"
+                editable={modalMode !== 'view'}
               />
 
-              <TextInput
-                label="Mô tả"
+              <Text style={styles.label}>Mô tả</Text>
+              <RNTextInput
+                style={[styles.input, styles.textArea]}
                 value={formData.description}
-                onChangeText={(text) => setFormData({...formData, description: text})}
-                mode="outlined"
+                onChangeText={(text) => setFormData({ ...formData, description: text })}
+                placeholder="Mô tả chi tiết..."
                 multiline
                 numberOfLines={3}
-                style={styles.input}
-                left={<TextInput.Icon icon="text" />}
+                editable={modalMode !== 'view'}
               />
-            </Card.Content>
-            
-            <Card.Actions>
-              <Button onPress={() => setShowModal(false)}>Hủy</Button>
-              <Button mode="contained" onPress={handleSave} loading={loading}>
-                {editingCategory ? 'Cập nhật' : 'Tạo mới'}
-              </Button>
-            </Card.Actions>
-          </Card>
-        </Modal>
-      </Portal>
 
-      {/* Custom Dialogs */}
-      <CustomDialog
-        visible={successDialog.visible}
-        type="success"
-        title={successDialog.title}
-        message={successDialog.message}
-        onClose={() => setSuccessDialog({ visible: false, title: '', message: '' })}
-        confirmText="Tuyệt vời!"
-      />
+              <View style={styles.switchContainer}>
+                <Text style={styles.label}>Trạng thái hoạt động</Text>
+                <TouchableOpacity
+                  style={[styles.switch, formData.is_active && styles.switchActive]}
+                  onPress={() => modalMode !== 'view' && setFormData({ ...formData, is_active: !formData.is_active })}
+                  disabled={modalMode === 'view'}
+                >
+                  <View style={[styles.switchThumb, formData.is_active && styles.switchThumbActive]} />
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
 
-      <CustomDialog
-        visible={errorDialog.visible}
-        type="error"
-        title={errorDialog.title}
-        message={errorDialog.message}
-        onClose={() => setErrorDialog({ visible: false, title: '', message: '' })}
-        confirmText="Đã hiểu"
-      />
-
-      <CustomDialog
-        visible={confirmDialog.visible}
-        type="confirm"
-        title={confirmDialog.title}
-        message={confirmDialog.message}
-        onConfirm={() => {
-          if (confirmDialog.onConfirm) confirmDialog.onConfirm();
-          setConfirmDialog({ visible: false, title: '', message: '', onConfirm: null });
-        }}
-        onCancel={() => setConfirmDialog({ visible: false, title: '', message: '', onConfirm: null })}
-        confirmText="Xác nhận"
-        cancelText="Hủy bỏ"
-      />
+            {/* Modal Footer */}
+            {modalMode !== 'view' && (
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={handleModalDismiss}
+                  disabled={modalLoading}
+                >
+                  <Text style={styles.cancelButtonText}>Hủy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.saveButton]}
+                  onPress={handleModalSubmit}
+                  disabled={modalLoading}
+                >
+                  {modalLoading ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.saveButtonText}>
+                      {modalMode === 'create' ? 'Tạo' : 'Lưu'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#f5f5f5',
   },
-  loadingContainer: {
+  centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
   },
   loadingText: {
-    marginTop: 16,
+    marginTop: 10,
     fontSize: 16,
     color: '#666',
   },
-  header: {
-    padding: 16,
+  searchContainer: {
     backgroundColor: '#fff',
-    elevation: 2,
+    paddingHorizontal: 15,
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
-  searchBar: {
-    elevation: 0,
-    backgroundColor: '#f8f9fa',
-  },
-  filtersContainer: {
+  searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 10,
   },
-  filterRow: {
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
     flex: 1,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#333',
+  },
+  filterContainer: {
+    flexDirection: 'row',
   },
   filterChip: {
-    marginRight: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
     backgroundColor: '#f5f5f5',
+    marginRight: 8,
   },
-  filterChipSelected: {
-    backgroundColor: '#6200EE',
+  filterChipActive: {
+    backgroundColor: '#1976d2',
   },
-  filterChipTextSelected: {
+  filterChipText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  filterChipTextActive: {
     color: '#fff',
-  },
-  sortButton: {
-    padding: 8,
-    marginLeft: 8,
-  },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  categoryCard: {
-    marginBottom: 16,
-    elevation: 4,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-  },
-  categoryCardContent: {
-    padding: 16,
-  },
-  categoryCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  categoryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(98, 0, 238, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  categoryInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  categoryName: {
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-    marginBottom: 2,
-    fontSize: 16,
-  },
-  categoryCode: {
-    color: '#6200EE',
-    marginBottom: 6,
-    fontSize: 12,
     fontWeight: '600',
   },
-  categoryDescription: {
-    color: '#666',
-    lineHeight: 18,
-    fontSize: 13,
-  },
-  categoryActions: {
-    alignItems: 'flex-end',
-  },
-  categoryStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  statChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  statText: {
-    color: '#666',
-    marginLeft: 6,
-    fontSize: 12,
-  },
-  menuButton: {
-    margin: 0,
+  listContent: {
+    padding: 15,
   },
   emptyContainer: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
-    paddingHorizontal: 32,
+    paddingVertical: 60,
   },
-  emptyIconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#EDE7F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
+  emptyText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#999',
   },
-  emptyTitle: {
-    marginBottom: 12,
-    textAlign: 'center',
-    color: '#1a1a1a',
-    fontWeight: 'bold',
-  },
-  emptySubtitle: {
-    textAlign: 'center',
-    color: '#666',
-    lineHeight: 24,
-  },
-  addButton: {
+  fab: {
     position: 'absolute',
     bottom: 20,
     right: 20,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#4CAF50',
+    borderRadius: 30,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  fabGradient: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#4CAF50',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
   },
-  modal: {
-    backgroundColor: 'white',
-    margin: 20,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '90%',
+    maxWidth: 500,
+    maxHeight: '80%',
+    backgroundColor: '#fff',
     borderRadius: 12,
+    overflow: 'hidden',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
   },
   modalTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#1a1a1a',
+    color: '#fff',
+  },
+  modalBody: {
+    padding: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+    marginTop: 8,
   },
   input: {
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#333',
+    backgroundColor: '#fff',
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  switch: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#ccc',
+    justifyContent: 'center',
+    padding: 2,
+  },
+  switchActive: {
+    backgroundColor: '#4CAF50',
+  },
+  switchThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    alignSelf: 'flex-start',
+  },
+  switchThumbActive: {
+    alignSelf: 'flex-end',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  modalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    marginRight: 10,
+  },
+  saveButton: {
+    backgroundColor: '#1976d2',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
-
-export default ProductCategoryScreen;

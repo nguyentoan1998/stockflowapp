@@ -8,6 +8,8 @@ import {
   Easing,
   Dimensions,
   RefreshControl,
+  TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import {
   Text,
@@ -19,7 +21,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useApi } from '../contexts/ApiContext';
-import { ModernButton } from '../components/ui/ModernButton';
 import { ModernCard } from '../components/ui/GradientCard';
 import { FadeIn, SlideUp, ScaleIn, AnimatedNumber, Pulse } from '../components/animations';
 import { Colors, Spacing, BorderRadius, Shadows, Typography } from '../theme';
@@ -278,14 +279,19 @@ export default function AttendanceScreen() {
             }
           ]}
         >
-          <ModernButton
-            title={attendanceStatus === 'not_checked_in' ? 'Chấm công vào' : 'Chấm công ra'}
-            icon={attendanceStatus === 'not_checked_in' ? 'login' : 'logout'}
+          <TouchableOpacity
+            style={[styles.fab, attendanceStatus === 'not_checked_in' ? styles.fabPrimary : styles.fabSecondary]}
             onPress={attendanceStatus === 'not_checked_in' ? handleCheckIn : handleCheckOut}
-            variant={attendanceStatus === 'not_checked_in' ? 'primary' : 'secondary'}
-            size="large"
-            style={styles.fab}
-          />
+          >
+            <Icon 
+              name={attendanceStatus === 'not_checked_in' ? 'login' : 'logout'} 
+              size={24} 
+              color="#fff" 
+            />
+            <Text style={styles.fabText}>
+              {attendanceStatus === 'not_checked_in' ? 'Chấm công vào' : 'Chấm công ra'}
+            </Text>
+          </TouchableOpacity>
         </Animated.View>
       )}
 
@@ -316,12 +322,17 @@ export default function AttendanceScreen() {
             <Button onPress={() => setShowDialog(false)} textColor={Colors.textSecondary}>
               Hủy
             </Button>
-            <ModernButton 
-              title="Xác nhận" 
-              onPress={confirmAttendance} 
-              loading={loading}
-              size="small"
-            />
+            <TouchableOpacity
+              style={styles.confirmButton}
+              onPress={confirmAttendance}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.confirmButtonText}>Xác nhận</Text>
+              )}
+            </TouchableOpacity>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -490,7 +501,38 @@ const styles = StyleSheet.create({
     right: Spacing.md,
   },
   fab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
     borderRadius: BorderRadius.lg,
+    gap: 8,
+  },
+  fabPrimary: {
+    backgroundColor: Colors.primary,
+  },
+  fabSecondary: {
+    backgroundColor: Colors.secondary,
+  },
+  fabText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  confirmButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 100,
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   // Dialog
   dialog: {

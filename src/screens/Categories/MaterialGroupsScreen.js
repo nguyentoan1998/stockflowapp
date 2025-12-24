@@ -24,7 +24,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons as Icon, Ionicons } from '@expo/vector-icons';
 import { useApi } from '../../contexts/ApiContext';
-import CustomDialog from '../../components/CustomDialog';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function MaterialGroupsScreen() {
@@ -606,7 +605,8 @@ export default function MaterialGroupsScreen() {
         </Modal>
       </Portal>
 
-      {/* Custom Dialogs */}
+      {/* Custom Dialogs - TODO: Migrate to CustomAlert */}
+      {/* 
       <CustomDialog
         visible={successDialog.visible}
         type="success"
@@ -638,6 +638,7 @@ export default function MaterialGroupsScreen() {
         confirmText="Xác nhận"
         cancelText="Hủy bỏ"
       />
+      */}
     </SafeAreaView>
   );
 }

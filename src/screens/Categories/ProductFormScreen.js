@@ -77,6 +77,7 @@ export default function ProductFormScreen() {
     { value: 'raw_material', label: 'Nguyên vật liệu' },
     { value: 'semi_finished', label: 'Bán thành phẩm' },
     { value: 'finished_product', label: 'Thành phẩm' },
+    { value: 'accessory_kit', label: 'Bộ phụ kiện' },
     { value: 'tool', label: 'Công cụ' },
     { value: 'asset', label: 'Tài sản' },
     { value: 'food', label: 'Thực phẩm' },
@@ -165,6 +166,12 @@ export default function ProductFormScreen() {
 
   const pickImage = async () => {
     try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.error('Lỗi', 'Cần quyền truy cập thư viện ảnh');
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -178,6 +185,29 @@ export default function ProductFormScreen() {
     } catch (error) {
       console.error('Error picking image:', error);
       Alert.error('Lỗi', 'Không thể chọn ảnh');
+    }
+  };
+
+  const takePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.error('Lỗi', 'Cần quyền truy cập camera');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        setFormData({ ...formData, image_url: result.assets[0].uri });
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.error('Lỗi', 'Không thể chụp ảnh');
     }
   };
 
@@ -285,22 +315,39 @@ export default function ProductFormScreen() {
         {/* Image Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ảnh sản phẩm</Text>
-          <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
-            {formData.image_url ? (
-              <Image source={{ uri: formData.image_url }} style={styles.image} />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <Ionicons name="camera" size={40} color="#ccc" />
-                <Text style={styles.imagePlaceholderText}>Chọn ảnh</Text>
-              </View>
-            )}
-            {imageUploading && (
-              <View style={styles.imageOverlay}>
-                <ActivityIndicator size="large" color="#007AFF" />
-                <Text style={styles.uploadingText}>Đang upload...</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          <View style={styles.imageContainer}>
+            <TouchableOpacity 
+              style={styles.imagePreview} 
+              onPress={pickImage}
+              activeOpacity={0.7}
+            >
+              {formData.image_url ? (
+                <Image source={{ uri: formData.image_url }} style={styles.image} />
+              ) : (
+                <View style={styles.imagePlaceholder}>
+                  <Ionicons name="image-outline" size={40} color="#ccc" />
+                  <Text style={styles.imagePlaceholderText}>Chọn ảnh</Text>
+                </View>
+              )}
+              {imageUploading && (
+                <View style={styles.imageOverlay}>
+                  <ActivityIndicator size="large" color="#007AFF" />
+                  <Text style={styles.uploadingText}>Đang upload...</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            
+            <View style={styles.imageActions}>
+              <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
+                <Ionicons name="images-outline" size={20} color="#007AFF" />
+                <Text style={styles.imageButtonText}>Thư viện</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.imageButton} onPress={takePhoto}>
+                <Ionicons name="camera-outline" size={20} color="#007AFF" />
+                <Text style={styles.imageButtonText}>Chụp ảnh</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
         {/* Basic Info */}
@@ -749,6 +796,32 @@ const styles = StyleSheet.create({
   imageContainer: {
     alignItems: 'center',
     marginVertical: 10,
+  },
+  imagePreview: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  imageActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 12,
+  },
+  imageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#E3F2FD',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  imageButtonText: {
+    color: '#007AFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
   image: {
     width: 200,
