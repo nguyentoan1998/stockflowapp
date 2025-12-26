@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TokenStorage, CacheStorage, clearAuthStorage } from '../utils/storage';
 
 const ApiContext = createContext();
 
@@ -16,6 +17,10 @@ export function ApiProvider({ children }) {
   const [isConnected, setIsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentBaseUrl, setCurrentBaseUrl] = useState(null);
+  const [showConnectionDialog, setShowConnectionDialog] = useState(false);
+  const [isRetryingConnection, setIsRetryingConnection] = useState(false);
+  const [connectionError, setConnectionError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   // API Configuration
   // Priority: Production server -> Local server
@@ -61,14 +66,47 @@ export function ApiProvider({ children }) {
     }
   );
 
-  // Response interceptor để handle errors
-  api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      if (error.response?.status === 401) {
-        // Session expired, clear user data
-        AsyncStorage.removeItem('userData');
+  // Request interceptor to add auth token from SecureStore
+  api.interceptors.request.use(
+    async (config) => {
+      try {
+        const token = await TokenStorage.get();
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      } catch (error) {
+        console.error('Error adding auth token:', error);
       }
+      return config;
+    },
+    (error) => Promise.reject(error)
+  );
+
+  // Response interceptor to handle errors
+  api.interceptors.response.use(
+    (response) => {
+      // Connection successful, close dialog if it's open
+      if (showConnectionDialog) {
+        setShowConnectionDialog(false);
+        setConnectionError(null);
+        setRetryCount(0);
+      }
+      return response;
+    },
+    async (error) => {
+      console.error('API Error:', error.message);
+
+      if (error.response?.status === 401) {
+        // Token expired or invalid - clear auth data only (keep query cache)
+        await clearAuthStorage();
+      } else if (!error.response) {
+        // Network error - show connection dialog
+        console.warn('Network error - showing connection dialog');
+        setShowConnectionDialog(true);
+        setConnectionError(error.message || 'Không thể kết nối tới server');
+        setIsConnected(false);
+      }
+
       return Promise.reject(error);
     }
   );
@@ -82,6 +120,37 @@ export function ApiProvider({ children }) {
       console.error('Error setting API key:', error);
       return false;
     }
+  };
+
+  // Handle retry connection
+  const handleRetryConnection = async () => {
+    setIsRetryingConnection(true);
+    const newRetryCount = retryCount + 1;
+    setRetryCount(newRetryCount);
+    
+    // Auto close dialog nếu thành công, hoặc sau 3 lần thử
+    const success = await testConnection();
+    
+    if (!success && newRetryCount >= 3) {
+      // Sau 3 lần thử, vẫn show dialog nhưng user phải manual retry
+      setIsRetryingConnection(false);
+    } else if (success) {
+      // Thành công - auto close
+      setShowConnectionDialog(false);
+      setConnectionError(null);
+      setRetryCount(0);
+    } else {
+      // Thất bại lần 1-2 - auto retry sau 2 giây
+      setTimeout(() => {
+        handleRetryConnection();
+      }, 2000);
+    }
+  };
+
+  // Close connection dialog manually
+  const closeConnectionDialog = () => {
+    setShowConnectionDialog(false);
+    setIsRetryingConnection(false);
   };
 
   // Test connection with fallback
@@ -162,6 +231,14 @@ export function ApiProvider({ children }) {
     baseUrl: BASE_URL,
     productionUrl: PRODUCTION_URL,
     localUrl: LOCAL_URL,
+    // Connection dialog states
+    showConnectionDialog,
+    isRetryingConnection,
+    connectionError,
+    retryCount,
+    // Connection dialog handlers
+    handleRetryConnection,
+    closeConnectionDialog,
   };
 
   return (

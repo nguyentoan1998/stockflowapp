@@ -14,9 +14,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 
 // Navigation
-import AppNavigator from './src/navigation/AppNavigator';
-
-const Stack = createStackNavigator();
+import RootNavigator from './src/navigation/RootNavigator';
 
 export default function App() {
   return (
@@ -26,7 +24,7 @@ export default function App() {
           <AuthProvider>
             <NavigationContainer>
               <StatusBar style="auto" />
-              <AppNavigator />
+              <RootNavigator />
             </NavigationContainer>
           </AuthProvider>
         </ApiProvider>

@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { useApi } from '../contexts/ApiContext';
@@ -19,16 +21,39 @@ import { Colors, BorderRadius, Spacing, Typography, Shadows } from '../theme';
 
 export default function LoginScreen() {
   const { login } = useAuth();
-  const { isConnected, testConnection, baseUrl, productionUrl } = useApi();
+  const { 
+    isConnected, 
+    testConnection, 
+    baseUrl, 
+    productionUrl,
+    handleRetryConnection, // From ConnectionDialog context
+  } = useApi();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [serverStatus, setServerStatus] = useState('checking'); // 'checking', 'connected', 'reconnecting', 'failed'
 
   useEffect(() => {
     checkServerConnection();
+  }, []);
+
+  // Load saved email on component mount
+  useEffect(() => {
+    const loadSavedEmail = async () => {
+      try {
+        const savedEmail = await AsyncStorage.getItem('savedEmail');
+        if (savedEmail) {
+          setEmail(savedEmail);
+          setRememberMe(true);
+        }
+      } catch (error) {
+        console.error('Error loading saved email:', error);
+      }
+    };
+    loadSavedEmail();
   }, []);
 
   const checkServerConnection = async () => {
@@ -68,17 +93,39 @@ export default function LoginScreen() {
     }
   };
 
-  const handleRetryConnection = () => {
+  const handleRetryConnectionLocal = () => {
     checkServerConnection();
   };
 
+  // Wrapper to call both local check and ConnectionDialog handler
+  const handleRetryConnectionClick = () => {
+    handleRetryConnectionLocal();
+    // Also trigger ConnectionDialog retry
+    if (handleRetryConnection) {
+      handleRetryConnection();
+    }
+  };
+
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
   const handleLogin = async () => {
-    if (!email || !password) {
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
       setError('Vui lòng nhập email và mật khẩu');
       return;
     }
 
-    if (serverStatus === 'failed' || serverStatus === 'checking') {
+    if (!validateEmail(trimmedEmail)) {
+      setError('Email không hợp lệ');
+      return;
+    }
+
+    if (!isConnected) {
       setError('Vui lòng đợi kết nối với server');
       return;
     }
@@ -87,13 +134,20 @@ export default function LoginScreen() {
     setError('');
 
     try {
-      const result = await login(email, password);
+      const result = await login(trimmedEmail, trimmedPassword);
       if (result.success) {
+        // Save login info if remember me is checked
+        if (rememberMe) {
+          await AsyncStorage.setItem('savedEmail', trimmedEmail);
+        } else {
+          await AsyncStorage.removeItem('savedEmail');
+        }
         // Navigation handled by AuthContext
       } else {
         setError(result.error || 'Đăng nhập thất bại');
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError('Có lỗi xảy ra. Vui lòng thử lại.');
     } finally {
       setLoading(false);
@@ -101,7 +155,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Background decoration */}
       <View style={styles.backgroundDecoration}>
         <View style={[styles.circle, styles.circle1]} />
@@ -161,6 +215,18 @@ export default function LoginScreen() {
                   returnKeyType="go"
                 />
 
+                <TouchableOpacity 
+                  style={styles.rememberMeContainer}
+                  onPress={() => setRememberMe(!rememberMe)}
+                >
+                  <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                    {rememberMe && (
+                      <Ionicons name="checkmark" size={16} color={Colors.surface} />
+                    )}
+                  </View>
+                  <Text style={styles.rememberMeText}>Lưu thông tin đăng nhập</Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity style={styles.forgotPassword}>
                   <Text style={styles.forgotPasswordText}>Quên mật khẩu?</Text>
                 </TouchableOpacity>
@@ -213,7 +279,7 @@ export default function LoginScreen() {
                       </View>
                       <TouchableOpacity 
                         style={styles.retryButton}
-                        onPress={handleRetryConnection}
+                        onPress={handleRetryConnectionClick}
                       >
                         <Ionicons name="refresh" size={16} color="#2196F3" />
                         <Text style={styles.retryText}>Thử lại</Text>
@@ -227,7 +293,7 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -335,6 +401,29 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    marginRight: Spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: Colors.primary,
+  },
+  rememberMeText: {
+    ...Typography.bodySmall,
+    color: Colors.text,
+    flex: 1,
   },
   forgotPassword: {
     alignSelf: 'flex-end',

@@ -23,8 +23,8 @@ export default function ManagementScreen() {
       icon: 'list',
       items: [
         { id: 'products', name: 'Sản phẩm', icon: 'cube', color: '#4A90E2', route: 'Products' },
-        { id: 'customers', name: 'Khách hàng', icon: 'person', color: '#E74C3C', route: 'Customers' },
-        { id: 'suppliers', name: 'Nhà cung cấp', icon: 'business', color: '#3498DB', route: 'Suppliers' },
+        { id: 'customers', name: 'Khách hàng', icon: 'people', color: '#E74C3C', route: 'Customers' },
+        { id: 'suppliers', name: 'Nhà cung cấp', icon: 'storefront', color: '#3498DB', route: 'Suppliers' },
         { id: 'units', name: 'Đơn vị tính', icon: 'fitness', color: '#9B59B6', route: 'Units' },
         { id: 'warehouses', name: 'Kho', icon: 'archive', color: '#F39C12', route: 'Warehouses' },
         { id: 'product-category', name: 'Loại sản phẩm', icon: 'pricetags', color: '#16A085', route: 'ProductCategory' },

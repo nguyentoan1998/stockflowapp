@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApi } from './ApiContext';
+import { TokenStorage, UserProfileStorage, clearAuthStorage } from '../utils/storage';
 
 const AuthContext = createContext();
 
@@ -61,61 +62,78 @@ export function AuthProvider({ children }) {
 
   const checkAuthStatus = async () => {
     try {
-      const userData = await AsyncStorage.getItem('userData');
+      // Check if token exists
+      const tokenExists = await TokenStorage.exists();
       
-      if (userData) {
-        const user = JSON.parse(userData);
-        // Verify session with server
-        try {
-          const response = await api.get('/auth/me');
-          if (response.data.ok) {
-            dispatch({ type: 'LOGIN_SUCCESS', payload: response.data.user });
-          } else {
+      if (!tokenExists) {
+        dispatch({ type: 'LOGOUT' });
+        return;
+      }
+
+      // Load cached user profile instantly (no white screen)
+      const cachedUser = await UserProfileStorage.get();
+      if (cachedUser) {
+        dispatch({ type: 'LOGIN_SUCCESS', payload: cachedUser });
+      }
+
+      // Background: Fetch latest user info from server
+      try {
+        const response = await api.get('/auth/me');
+        if (response.data.ok) {
+          const updatedUser = response.data.user;
+          // Update cache with latest data
+          await UserProfileStorage.save(updatedUser);
+          dispatch({ type: 'LOGIN_SUCCESS', payload: updatedUser });
+        } else {
+          // If no cached user and API fails, logout
+          if (!cachedUser) {
+            await clearAuthStorage();
             dispatch({ type: 'LOGOUT' });
           }
-        } catch {
+        }
+      } catch (error) {
+        console.error('Error fetching user info:', error);
+        // If no cached user and API fails, logout
+        if (!cachedUser) {
+          await clearAuthStorage();
           dispatch({ type: 'LOGOUT' });
         }
-      } else {
-        dispatch({ type: 'LOGOUT' });
+        // If we have cached user, stay logged in (keep cached data)
       }
     } catch (error) {
-      console.log('Error checking auth status:', error);
+      console.error('Error checking auth status:', error);
       dispatch({ type: 'LOGOUT' });
     }
   };
 
-  const login = async (username, password) => {
+  const login = async (email, password) => {
     try {
       dispatch({ type: 'LOADING' });
-      
-      const response = await api.post('/auth/login', {
-        user: username,  // Server expects 'user' field, not 'username'
-        password
-      });
 
-      const { user } = response.data;  // Server returns user object, no separate token
+      // Login with server (Supabase Auth handled by server)
+      const loginResponse = await api.post('/auth/login', { email, password });
 
-      // Save to AsyncStorage - Server uses cookie-based auth
-      await AsyncStorage.setItem('userData', JSON.stringify(user));
+      if (!loginResponse.data.ok) {
+        const errorMessage = loginResponse.data.error || 'Đăng nhập thất bại';
+        dispatch({ type: 'LOGIN_FAILURE', payload: errorMessage });
+        return { success: false, error: errorMessage };
+      }
+
+      const { token, user } = loginResponse.data;
+
+      // Save token to SecureStore (encrypted)
+      if (token) {
+        await TokenStorage.save(token);
+      }
+
+      // Save user profile to AsyncStorage (instant loading)
+      await UserProfileStorage.save(user);
 
       dispatch({ type: 'LOGIN_SUCCESS', payload: user });
       return { success: true };
-      
     } catch (error) {
-      // Debug: Log the error details
-      console.log('Login error:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-        config: {
-          url: error.config?.url,
-          method: error.config?.method,
-          data: error.config?.data
-        }
-      });
-      
-      const errorMessage = error.response?.data?.message || 'Đăng nhập thất bại';
+      console.error('Login error:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Đăng nhập thất bại';
       dispatch({ type: 'LOGIN_FAILURE', payload: errorMessage });
       return { success: false, error: errorMessage };
     }
@@ -123,14 +141,20 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      // Call server logout to clear cookie
-      await api.post('/auth/logout');
-      await AsyncStorage.removeItem('userData');
+      // Notify server to logout
+      try {
+        await api.post('/auth/logout');
+      } catch (error) {
+        console.error('Server logout error (non-critical):', error);
+      }
+
+      // Clear auth data (token, profile) but keep query cache
+      await clearAuthStorage();
       dispatch({ type: 'LOGOUT' });
     } catch (error) {
-      console.log('Error during logout:', error);
-      // Clear local data even if server call fails
-      await AsyncStorage.removeItem('userData');
+      console.error('Error during logout:', error);
+      // Clear auth data even if server call fails
+      await clearAuthStorage();
       dispatch({ type: 'LOGOUT' });
     }
   };
