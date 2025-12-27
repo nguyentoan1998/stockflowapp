@@ -110,8 +110,13 @@ export function AuthProvider({ children }) {
     try {
       dispatch({ type: 'LOADING' });
 
+      console.log('[Login] Attempting login with:', { email });
+      console.log('[Login] Server URL:', api.defaults.baseURL);
+
       // Login with server (Supabase Auth handled by server)
       const loginResponse = await api.post('/auth/login', { email, password });
+
+      console.log('[Login] Response:', loginResponse.data);
 
       if (!loginResponse.data.ok) {
         const errorMessage = loginResponse.data.error || 'Đăng nhập thất bại';
@@ -124,16 +129,27 @@ export function AuthProvider({ children }) {
       // Save token to SecureStore (encrypted)
       if (token) {
         await TokenStorage.save(token);
+        console.log('[Login] Token saved to SecureStore');
       }
 
       // Save user profile to AsyncStorage (instant loading)
       await UserProfileStorage.save(user);
+      console.log('[Login] User profile saved to AsyncStorage');
 
       dispatch({ type: 'LOGIN_SUCCESS', payload: user });
+      console.log('[Login] Login successful');
       return { success: true };
     } catch (error) {
-      console.error('Login error:', error);
-      const errorMessage = error.response?.data?.error || error.message || 'Đăng nhập thất bại';
+      console.error('[Login] Error Details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        message: error.message,
+        data: error.response?.data,
+        url: error.config?.url,
+        method: error.config?.method,
+      });
+      
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Đăng nhập thất bại';
       dispatch({ type: 'LOGIN_FAILURE', payload: errorMessage });
       return { success: false, error: errorMessage };
     }

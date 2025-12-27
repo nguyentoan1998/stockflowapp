@@ -23,13 +23,26 @@ export function ApiProvider({ children }) {
   const [retryCount, setRetryCount] = useState(0);
 
   // API Configuration
-  // Priority: Production server -> Local server
+  // For emulator/device testing, use your computer's IP address
+  // Find your IP: Run 'ipconfig' (Windows) or 'ifconfig' (Mac/Linux) and look for IPv4 address
   const PRODUCTION_URL = 'https://api.tinphatmetech.online';
-  const LOCAL_URL = __DEV__ 
-    ? process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.139:3001'
-    : 'http://localhost:3001';
+  const LOCAL_URL = 'http://192.168.1.139:3001'; // Change 192.168.1.139 to your actual IP
   
-  const BASE_URL = currentBaseUrl || PRODUCTION_URL;
+  // Use LOCAL_URL for testing, change to PRODUCTION_URL for production
+  const USE_LOCAL = false; // Set to false for production
+  
+  const BASE_URL = currentBaseUrl || (USE_LOCAL ? LOCAL_URL : PRODUCTION_URL);
+  
+  // Log API configuration
+  useEffect(() => {
+    console.log('API Configuration:', {
+      PRODUCTION_URL,
+      LOCAL_URL,
+      USE_LOCAL,
+      BASE_URL,
+      isDev: __DEV__,
+    });
+  }, []);
 
   // Get API key from AsyncStorage with default fallback
   const getApiKey = async () => {
@@ -42,8 +55,11 @@ export function ApiProvider({ children }) {
     }
   };
 
+  // Force localhost for testing if USE_LOCAL is true
+  const ACTUAL_BASE_URL = USE_LOCAL ? LOCAL_URL : BASE_URL;
+
   const api = axios.create({
-    baseURL: BASE_URL,
+    baseURL: ACTUAL_BASE_URL,
     timeout: 15000,
     withCredentials: true,  // Enable cookies for authentication
     headers: {
@@ -51,6 +67,13 @@ export function ApiProvider({ children }) {
       'Accept': 'application/json',
     },
   });
+
+  // Update baseURL whenever USE_LOCAL changes
+  useEffect(() => {
+    const newUrl = USE_LOCAL ? LOCAL_URL : PRODUCTION_URL;
+    api.defaults.baseURL = newUrl;
+    console.log('🔄 Updated API baseURL to:', newUrl);
+  }, [USE_LOCAL]);
 
   // Request interceptor để thêm API key header
   api.interceptors.request.use(
@@ -128,22 +151,19 @@ export function ApiProvider({ children }) {
     const newRetryCount = retryCount + 1;
     setRetryCount(newRetryCount);
     
-    // Auto close dialog nếu thành công, hoặc sau 3 lần thử
+    // Try to connect
     const success = await testConnection();
     
-    if (!success && newRetryCount >= 3) {
-      // Sau 3 lần thử, vẫn show dialog nhưng user phải manual retry
-      setIsRetryingConnection(false);
-    } else if (success) {
+    if (success) {
       // Thành công - auto close
       setShowConnectionDialog(false);
       setConnectionError(null);
       setRetryCount(0);
-    } else {
-      // Thất bại lần 1-2 - auto retry sau 2 giây
-      setTimeout(() => {
-        handleRetryConnection();
-      }, 2000);
+      setIsRetryingConnection(false);
+    } else if (newRetryCount >= 3) {
+      // Sau 3 lần thử, dừng retry
+      setIsRetryingConnection(false);
+      console.warn('Max retries reached, user must manually retry');
     }
   };
 
@@ -169,23 +189,45 @@ export function ApiProvider({ children }) {
       });
       
       const apiKey = await getApiKey();
-      const response = await testApi.get('/health', {
-        headers: { 'X-API-Key': apiKey }
-      });
       
-      if (response.status === 200) {
-        // Connection successful
-        if (currentBaseUrl !== testUrl) {
-          setCurrentBaseUrl(testUrl);
-          // Update axios instance baseURL
-          api.defaults.baseURL = testUrl;
+      // Try /health endpoint first
+      try {
+        const response = await testApi.get('/health', {
+          headers: { 'X-API-Key': apiKey }
+        });
+        
+        if (response.status === 200 || response.status === 404) {
+          // Connection successful (404 is ok, means endpoint doesn't exist but server is up)
+          if (currentBaseUrl !== testUrl) {
+            setCurrentBaseUrl(testUrl);
+            api.defaults.baseURL = testUrl;
+          }
+          setIsConnected(true);
+          console.log(`✅ Connected to ${testUrl}`);
+          return true;
         }
-        setIsConnected(true);
-        return true;
+      } catch (healthError) {
+        // If /health fails, try /auth/me as fallback
+        console.warn('Health endpoint failed, trying /auth/me as fallback...');
+        try {
+          const meResponse = await testApi.get('/auth/me', {
+            headers: { 'X-API-Key': apiKey }
+          });
+          
+          // If we get any response (even 401), server is up
+          if (currentBaseUrl !== testUrl) {
+            setCurrentBaseUrl(testUrl);
+            api.defaults.baseURL = testUrl;
+          }
+          setIsConnected(true);
+          console.log(`✅ Connected to ${testUrl} via /auth/me`);
+          return true;
+        } catch (meError) {
+          throw meError;
+        }
       }
-      throw new Error('Health check failed');
     } catch (error) {
-      console.error(`Connection failed to ${testUrl}:`, error.message);
+      console.error(`❌ Connection failed to ${testUrl}:`, error.message);
       
       // If production failed and we haven't tried local yet
       if (testUrl === PRODUCTION_URL) {
@@ -193,7 +235,12 @@ export function ApiProvider({ children }) {
         return await testConnection(LOCAL_URL);
       }
       
-      // Both failed
+      // Both failed - set to production anyway and let app continue
+      console.warn('⚠️  Could not connect to any server, using production URL as default');
+      if (currentBaseUrl !== PRODUCTION_URL) {
+        setCurrentBaseUrl(PRODUCTION_URL);
+        api.defaults.baseURL = PRODUCTION_URL;
+      }
       setIsConnected(false);
       return false;
     } finally {
