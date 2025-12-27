@@ -188,43 +188,24 @@ export function ApiProvider({ children }) {
         },
       });
       
-      const apiKey = await getApiKey();
-      
-      // Try /health endpoint first
+      // Just make a simple request to check if server is reachable
+      // Don't use /health as it may require auth
+      // Instead, just try to connect - if server responds with any status, it's up
       try {
-        const response = await testApi.get('/health', {
-          headers: { 'X-API-Key': apiKey }
+        await testApi.head('/', {
+          validateStatus: () => true // Accept any status code
         });
         
-        if (response.status === 200 || response.status === 404) {
-          // Connection successful (404 is ok, means endpoint doesn't exist but server is up)
-          if (currentBaseUrl !== testUrl) {
-            setCurrentBaseUrl(testUrl);
-            api.defaults.baseURL = testUrl;
-          }
-          setIsConnected(true);
-          console.log(`✅ Connected to ${testUrl}`);
-          return true;
+        // Server is reachable
+        if (currentBaseUrl !== testUrl) {
+          setCurrentBaseUrl(testUrl);
+          api.defaults.baseURL = testUrl;
         }
-      } catch (healthError) {
-        // If /health fails, try /auth/me as fallback
-        console.warn('Health endpoint failed, trying /auth/me as fallback...');
-        try {
-          const meResponse = await testApi.get('/auth/me', {
-            headers: { 'X-API-Key': apiKey }
-          });
-          
-          // If we get any response (even 401), server is up
-          if (currentBaseUrl !== testUrl) {
-            setCurrentBaseUrl(testUrl);
-            api.defaults.baseURL = testUrl;
-          }
-          setIsConnected(true);
-          console.log(`✅ Connected to ${testUrl} via /auth/me`);
-          return true;
-        } catch (meError) {
-          throw meError;
-        }
+        setIsConnected(true);
+        console.log(`✅ Connected to ${testUrl}`);
+        return true;
+      } catch (error) {
+        throw error;
       }
     } catch (error) {
       console.error(`❌ Connection failed to ${testUrl}:`, error.message);
