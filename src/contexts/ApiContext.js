@@ -33,16 +33,6 @@ export function ApiProvider({ children }) {
   
   const BASE_URL = currentBaseUrl || (USE_LOCAL ? LOCAL_URL : PRODUCTION_URL);
   
-  // Log API configuration
-  useEffect(() => {
-    console.log('API Configuration:', {
-      PRODUCTION_URL,
-      LOCAL_URL,
-      USE_LOCAL,
-      BASE_URL,
-      isDev: __DEV__,
-    });
-  }, []);
 
   // Get API key from AsyncStorage with default fallback
   const getApiKey = async () => {
@@ -72,7 +62,6 @@ export function ApiProvider({ children }) {
   useEffect(() => {
     const newUrl = USE_LOCAL ? LOCAL_URL : PRODUCTION_URL;
     api.defaults.baseURL = newUrl;
-    console.log('🔄 Updated API baseURL to:', newUrl);
   }, [USE_LOCAL]);
 
   // Request interceptor để thêm API key header
@@ -108,26 +97,12 @@ export function ApiProvider({ children }) {
   // Response interceptor to handle errors
   api.interceptors.response.use(
     (response) => {
-      // Connection successful, close dialog if it's open
-      if (showConnectionDialog) {
-        setShowConnectionDialog(false);
-        setConnectionError(null);
-        setRetryCount(0);
-      }
       return response;
     },
     async (error) => {
-      console.error('API Error:', error.message);
-
       if (error.response?.status === 401) {
         // Token expired or invalid - clear auth data only (keep query cache)
         await clearAuthStorage();
-      } else if (!error.response) {
-        // Network error - show connection dialog
-        console.warn('Network error - showing connection dialog');
-        setShowConnectionDialog(true);
-        setConnectionError(error.message || 'Không thể kết nối tới server');
-        setIsConnected(false);
       }
 
       return Promise.reject(error);
@@ -202,22 +177,17 @@ export function ApiProvider({ children }) {
           api.defaults.baseURL = testUrl;
         }
         setIsConnected(true);
-        console.log(`✅ Connected to ${testUrl}`);
         return true;
       } catch (error) {
         throw error;
       }
     } catch (error) {
-      console.error(`❌ Connection failed to ${testUrl}:`, error.message);
-      
       // If production failed and we haven't tried local yet
       if (testUrl === PRODUCTION_URL) {
-        console.warn('Production server unavailable, trying local server...');
         return await testConnection(LOCAL_URL);
       }
       
       // Both failed - set to production anyway and let app continue
-      console.warn('⚠️  Could not connect to any server, using production URL as default');
       if (currentBaseUrl !== PRODUCTION_URL) {
         setCurrentBaseUrl(PRODUCTION_URL);
         api.defaults.baseURL = PRODUCTION_URL;
