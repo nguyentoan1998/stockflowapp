@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ export default function CustomersScreen() {
   const navigation = useNavigation();
   const { api } = useApi();
 
-  const [customers, setcustomers] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,7 +31,7 @@ export default function CustomersScreen() {
   // Modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
-  const [selectedcustomer, setSelectedcustomer] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
 
   // Form state
@@ -50,21 +50,21 @@ export default function CustomersScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchcustomers();
+      fetchCustomers();
     }, [])
   );
 
-  const fetchcustomers = async () => {
+  const fetchCustomers = async () => {
     try {
       setLoading(true);
       const response = await api.get('/api/customers');
       const customersData = Array.isArray(response.data)
         ? response.data
         : (response.data?.data || []);
-      setcustomers(customersData);
+      setCustomers(customersData);
     } catch (error) {
       console.error('Error fetching customers:', error);
-      Alert.error('Lỗi', 'Không thể tải danh sách đơn vị tính');
+      Alert.error('Lỗi', 'Không thể tải danh sách khách hàng');
     } finally {
       setLoading(false);
     }
@@ -72,13 +72,13 @@ export default function CustomersScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchcustomers();
+    await fetchCustomers();
     setRefreshing(false);
   };
 
   const handleAdd = () => {
     setFormData({ code: '', name: '', description: '' });
-    setSelectedcustomer(null);
+    setSelectedCustomer(null);
     setModalMode('create');
     setModalVisible(true);
   };
@@ -89,7 +89,7 @@ export default function CustomersScreen() {
       name: customer.name || '',
       description: customer.description || '',
     });
-    setSelectedcustomer(customer);
+    setSelectedCustomer(customer);
     setModalMode('edit');
     setModalVisible(true);
   };
@@ -100,7 +100,7 @@ export default function CustomersScreen() {
       name: customer.name || '',
       description: customer.description || '',
     });
-    setSelectedcustomer(customer);
+    setSelectedCustomer(customer);
     setModalMode('view');
     setModalVisible(true);
   };
@@ -109,19 +109,19 @@ export default function CustomersScreen() {
     const customer = customers.find(u => u.id === customerId);
     Alert.confirm(
       'Xác nhận xóa',
-      `Bạn có chắc chắn muốn xóa đơn vị "${customer?.name}"?`,
+      `Bạn có chắc chắn muốn xóa khách hàng "${customer?.name}"?`,
       async () => {
         const customerToDelete = customers.find(u => u.id === customerId);
-        setcustomers(customers.filter(u => u.id !== customerId));
+        setCustomers(customers.filter(u => u.id !== customerId));
 
         try {
           await api.delete(`/api/customers/${customerId}`);
-          Alert.success('Xóa thành công!', `Đơn vị "${customerToDelete?.name}" đã được xóa.`);
+          Alert.success('Xóa thành công!', `Khách hàng "${customerToDelete?.name}" đã được xóa.`);
         } catch (error) {
           if (customerToDelete) {
-            setcustomers(prevcustomers => [...prevcustomers, customerToDelete]);
+            setCustomers(prevCustomers => [...prevCustomers, customerToDelete]);
           }
-          Alert.error('Lỗi', 'Không thể xóa đơn vị. Vui lòng thử lại.');
+          Alert.error('Lỗi', 'Không thể xóa khách hàng. Vui lòng thử lại.');
         }
       }
     );
@@ -129,7 +129,7 @@ export default function CustomersScreen() {
 
   const handleModalSubmit = async () => {
     if (!formData.code.trim() || !formData.name.trim()) {
-      Alert.error('Lỗi', 'Vui lòng nhập đầy đủ mã và tên đơn vị');
+      Alert.error('Lỗi', 'Vui lòng nhập đầy đủ mã và tên khách hàng');
       return;
     }
 
@@ -143,26 +143,26 @@ export default function CustomersScreen() {
       };
 
       if (modalMode === 'edit') {
-        await api.put(`/api/customers/${selectedcustomer.id}`, dataToSend);
-        setcustomers(customers.map(u => u.id === selectedcustomer.id ? { ...u, ...dataToSend } : u));
-        Alert.success('Cập nhật thành công!', 'Thông tin đơn vị đã được cập nhật.');
+        await api.put(`/api/customers/${selectedCustomer.id}`, dataToSend);
+        setCustomers(customers.map(u => u.id === selectedCustomer.id ? { ...u, ...dataToSend } : u));
+        Alert.success('Cập nhật thành công!', 'Thông tin khách hàng đã được cập nhật.');
       } else {
         const response = await api.post('/api/customers', dataToSend);
-        setcustomers([response.data, ...customers]);
-        Alert.success('Tạo thành công!', 'Đơn vị mới đã được thêm vào hệ thống.');
+        setCustomers([response.data, ...customers]);
+        Alert.success('Tạo thành công!', 'Khách hàng mới đã được thêm vào hệ thống.');
       }
 
       setModalVisible(false);
-      await fetchcustomers();
+      await fetchCustomers();
     } catch (error) {
       console.error('Error saving customer:', error);
-      Alert.error('Lỗi', error.response?.data?.message || 'Không thể lưu thông tin đơn vị');
+      Alert.error('Lỗi', error.response?.data?.message || 'Không thể lưu thông tin khách hàng');
     } finally {
       setModalLoading(false);
     }
   };
 
-  const getFilteredcustomers = () => {
+  const getFilteredCustomers = () => {
     return customers.filter(customer => {
       const searchLower = searchQuery.toLowerCase();
       return (
@@ -173,11 +173,11 @@ export default function CustomersScreen() {
     });
   };
 
-  const rendercustomerItem = ({ item: customer }) => (
+  const renderCustomerItem = ({ item: customer }) => (
     <ListCard
       title={customer.name}
       subtitle={customer.code}
-      imageIcon="person-outline"
+      imageIcon="account-outline"
       details={[
         customer.description && {
           label: 'Mô tả',
@@ -202,7 +202,7 @@ export default function CustomersScreen() {
     );
   }
 
-  const filteredcustomers = getFilteredcustomers();
+  const filteredCustomers = getFilteredCustomers();
 
   return (
     <View style={styles.container}>
@@ -214,7 +214,7 @@ export default function CustomersScreen() {
           <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
           <RNTextInput
             style={styles.searchInput}
-            placeholder="Tìm kiếm đơn vị..."
+            placeholder="Tìm kiếm khách hàng..."
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor="#999"
@@ -229,16 +229,16 @@ export default function CustomersScreen() {
 
       {/* List */}
       <FlatList
-        data={filteredcustomers}
-        renderItem={rendercustomerItem}
+        data={filteredCustomers}
+        renderItem={renderCustomerItem}
         keyExtractor={item => item.id?.toString()}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="person-outline" size={64} color="#ccc" />
+            <Ionicons name="account-outline" size={64} color="#ccc" />
             <Text style={styles.emptyText}>
-              {searchQuery ? 'Không tìm thấy kết quả' : 'Chưa có đơn vị tính nào'}
+              {searchQuery ? 'Không tìm thấy kết quả' : 'Chưa có khách hàng nào'}
             </Text>
           </View>
         }
@@ -260,7 +260,7 @@ export default function CustomersScreen() {
               style={styles.modalHeader}
             >
               <Text style={styles.modalTitle}>
-                {modalMode === 'create' ? 'Thêm đơn vị' : modalMode === 'edit' ? 'Sửa đơn vị' : 'Chi tiết đơn vị'}
+                {modalMode === 'create' ? 'Thêm khách hàng' : modalMode === 'edit' ? 'Sửa khách hàng' : 'Chi tiết khách hàng'}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#fff" />
@@ -268,7 +268,7 @@ export default function CustomersScreen() {
             </LinearGradient>
 
             <ScrollView style={styles.modalBody}>
-              <Text style={styles.label}>Mã đơn vị *</Text>
+              <Text style={styles.label}>Mã khách hàng *</Text>
               <RNTextInput
                 style={styles.input}
                 value={formData.code}
@@ -277,12 +277,12 @@ export default function CustomersScreen() {
                 editable={modalMode !== 'view'}
               />
 
-              <Text style={styles.label}>Tên đơn vị *</Text>
+              <Text style={styles.label}>Tên khách hàng *</Text>
               <RNTextInput
                 style={styles.input}
                 value={formData.name}
                 onChangeText={(text) => setFormData({ ...formData, name: text })}
-                placeholder="VD: C�ng ty ABC"
+                placeholder="VD: Công ty ABC"
                 editable={modalMode !== 'view'}
               />
 
@@ -343,7 +343,3 @@ const styles = StyleSheet.create({
   cancelButtonText: { fontSize: 16, fontWeight: '600', color: '#666' },
   saveButtonText: { fontSize: 16, fontWeight: '600', color: '#fff' },
 });
-
-
-
-

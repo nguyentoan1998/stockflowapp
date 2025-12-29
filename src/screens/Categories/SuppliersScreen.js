@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ export default function SuppliersScreen() {
   const navigation = useNavigation();
   const { api } = useApi();
 
-  const [suppliers, setsuppliers] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,7 +31,7 @@ export default function SuppliersScreen() {
   // Modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
-  const [selectedsupplier, setSelectedsupplier] = useState(null);
+  const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
 
   // Form state
@@ -50,21 +50,21 @@ export default function SuppliersScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchsuppliers();
+      fetchSuppliers();
     }, [])
   );
 
-  const fetchsuppliers = async () => {
+  const fetchSuppliers = async () => {
     try {
       setLoading(true);
       const response = await api.get('/api/suppliers');
       const suppliersData = Array.isArray(response.data)
         ? response.data
         : (response.data?.data || []);
-      setsuppliers(suppliersData);
+      setSuppliers(suppliersData);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
-      Alert.error('Lá»—i', 'KhÃ´ng thá»ƒ táº£i danh sÃ¡ch Ä‘Æ¡n vá»‹ tÃ­nh');
+      Alert.error('Lỗi', 'Không thể tải danh sách nhà cung cấp');
     } finally {
       setLoading(false);
     }
@@ -72,13 +72,13 @@ export default function SuppliersScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchsuppliers();
+    await fetchSuppliers();
     setRefreshing(false);
   };
 
   const handleAdd = () => {
     setFormData({ code: '', name: '', description: '' });
-    setSelectedsupplier(null);
+    setSelectedSupplier(null);
     setModalMode('create');
     setModalVisible(true);
   };
@@ -89,7 +89,7 @@ export default function SuppliersScreen() {
       name: supplier.name || '',
       description: supplier.description || '',
     });
-    setSelectedsupplier(supplier);
+    setSelectedSupplier(supplier);
     setModalMode('edit');
     setModalVisible(true);
   };
@@ -100,7 +100,7 @@ export default function SuppliersScreen() {
       name: supplier.name || '',
       description: supplier.description || '',
     });
-    setSelectedsupplier(supplier);
+    setSelectedSupplier(supplier);
     setModalMode('view');
     setModalVisible(true);
   };
@@ -108,20 +108,20 @@ export default function SuppliersScreen() {
   const handleDelete = (supplierId) => {
     const supplier = suppliers.find(u => u.id === supplierId);
     Alert.confirm(
-      'XÃ¡c nháº­n xÃ³a',
-      `Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a Ä‘Æ¡n vá»‹ "${supplier?.name}"?`,
+      'Xác nhận xóa',
+      `Bạn có chắc chắn muốn xóa nhà cung cấp "${supplier?.name}"?`,
       async () => {
         const supplierToDelete = suppliers.find(u => u.id === supplierId);
-        setsuppliers(suppliers.filter(u => u.id !== supplierId));
+        setSuppliers(suppliers.filter(u => u.id !== supplierId));
 
         try {
           await api.delete(`/api/suppliers/${supplierId}`);
-          Alert.success('XÃ³a thÃ nh cÃ´ng!', `ÄÆ¡n vá»‹ "${supplierToDelete?.name}" Ä‘Ã£ Ä‘Æ°á»£c xÃ³a.`);
+          Alert.success('Xóa thành công!', `Nhà cung cấp "${supplierToDelete?.name}" đã được xóa.`);
         } catch (error) {
           if (supplierToDelete) {
-            setsuppliers(prevsuppliers => [...prevsuppliers, supplierToDelete]);
+            setSuppliers(prevSuppliers => [...prevSuppliers, supplierToDelete]);
           }
-          Alert.error('Lá»—i', 'KhÃ´ng thá»ƒ xÃ³a Ä‘Æ¡n vá»‹. Vui lÃ²ng thá»­ láº¡i.');
+          Alert.error('Lỗi', 'Không thể xóa nhà cung cấp. Vui lòng thử lại.');
         }
       }
     );
@@ -129,7 +129,7 @@ export default function SuppliersScreen() {
 
   const handleModalSubmit = async () => {
     if (!formData.code.trim() || !formData.name.trim()) {
-      Alert.error('Lá»—i', 'Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ mÃ£ vÃ  tÃªn Ä‘Æ¡n vá»‹');
+      Alert.error('Lỗi', 'Vui lòng nhập đầy đủ mã và tên nhà cung cấp');
       return;
     }
 
@@ -143,26 +143,26 @@ export default function SuppliersScreen() {
       };
 
       if (modalMode === 'edit') {
-        await api.put(`/api/suppliers/${selectedsupplier.id}`, dataToSend);
-        setsuppliers(suppliers.map(u => u.id === selectedsupplier.id ? { ...u, ...dataToSend } : u));
-        Alert.success('Cáº­p nháº­t thÃ nh cÃ´ng!', 'ThÃ´ng tin Ä‘Æ¡n vá»‹ Ä‘Ã£ Ä‘Æ°á»£c cáº­p nháº­t.');
+        await api.put(`/api/suppliers/${selectedSupplier.id}`, dataToSend);
+        setSuppliers(suppliers.map(u => u.id === selectedSupplier.id ? { ...u, ...dataToSend } : u));
+        Alert.success('Cập nhật thành công!', 'Thông tin nhà cung cấp đã được cập nhật.');
       } else {
         const response = await api.post('/api/suppliers', dataToSend);
-        setsuppliers([response.data, ...suppliers]);
-        Alert.success('Táº¡o thÃ nh cÃ´ng!', 'ÄÆ¡n vá»‹ má»›i Ä‘Ã£ Ä‘Æ°á»£c thÃªm vÃ o há»‡ thá»‘ng.');
+        setSuppliers([response.data, ...suppliers]);
+        Alert.success('Tạo thành công!', 'Nhà cung cấp mới đã được thêm vào hệ thống.');
       }
 
       setModalVisible(false);
-      await fetchsuppliers();
+      await fetchSuppliers();
     } catch (error) {
       console.error('Error saving supplier:', error);
-      Alert.error('Lá»—i', error.response?.data?.message || 'KhÃ´ng thá»ƒ lÆ°u thÃ´ng tin Ä‘Æ¡n vá»‹');
+      Alert.error('Lỗi', error.response?.data?.message || 'Không thể lưu thông tin nhà cung cấp');
     } finally {
       setModalLoading(false);
     }
   };
 
-  const getFilteredsuppliers = () => {
+  const getFilteredSuppliers = () => {
     return suppliers.filter(supplier => {
       const searchLower = searchQuery.toLowerCase();
       return (
@@ -173,22 +173,22 @@ export default function SuppliersScreen() {
     });
   };
 
-  const rendersupplierItem = ({ item: supplier }) => (
+  const renderSupplierItem = ({ item: supplier }) => (
     <ListCard
       title={supplier.name}
       subtitle={supplier.code}
-      imageIcon="business-outline"
+      imageIcon="cart"
       details={[
         supplier.description && {
-          label: 'MÃ´ táº£',
+          label: 'Mô tả',
           value: supplier.description,
           icon: 'document-text-outline',
         },
       ].filter(Boolean)}
       actions={[
         { label: 'Xem', icon: 'eye', color: '#1976d2', onPress: () => handleView(supplier) },
-        { label: 'Sá»­a', icon: 'pencil', color: '#4CAF50', onPress: () => handleEdit(supplier) },
-        { label: 'XÃ³a', icon: 'delete', color: '#F44336', onPress: () => handleDelete(supplier.id) },
+        { label: 'Sửa', icon: 'pencil', color: '#4CAF50', onPress: () => handleEdit(supplier) },
+        { label: 'Xóa', icon: 'delete', color: '#F44336', onPress: () => handleDelete(supplier.id) },
       ]}
     />
   );
@@ -197,12 +197,12 @@ export default function SuppliersScreen() {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#1976d2" />
-        <Text style={styles.loadingText}>Äang táº£i...</Text>
+        <Text style={styles.loadingText}>Đang tải...</Text>
       </View>
     );
   }
 
-  const filteredsuppliers = getFilteredsuppliers();
+  const filteredSuppliers = getFilteredSuppliers();
 
   return (
     <View style={styles.container}>
@@ -214,7 +214,7 @@ export default function SuppliersScreen() {
           <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
           <RNTextInput
             style={styles.searchInput}
-            placeholder="TÃ¬m kiáº¿m Ä‘Æ¡n vá»‹..."
+            placeholder="Tìm kiếm nhà cung cấp..."
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor="#999"
@@ -229,16 +229,16 @@ export default function SuppliersScreen() {
 
       {/* List */}
       <FlatList
-        data={filteredsuppliers}
-        renderItem={rendersupplierItem}
+        data={filteredSuppliers}
+        renderItem={renderSupplierItem}
         keyExtractor={item => item.id?.toString()}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="business-outline" size={64} color="#ccc" />
+            <Ionicons name="cart" size={64} color="#ccc" />
             <Text style={styles.emptyText}>
-              {searchQuery ? 'KhÃ´ng tÃ¬m tháº¥y káº¿t quáº£' : 'ChÆ°a cÃ³ Ä‘Æ¡n vá»‹ tÃ­nh nÃ o'}
+              {searchQuery ? 'Không tìm thấy kết quả' : 'Chưa có nhà cung cấp nào'}
             </Text>
           </View>
         }
@@ -260,7 +260,7 @@ export default function SuppliersScreen() {
               style={styles.modalHeader}
             >
               <Text style={styles.modalTitle}>
-                {modalMode === 'create' ? 'ThÃªm Ä‘Æ¡n vá»‹' : modalMode === 'edit' ? 'Sá»­a Ä‘Æ¡n vá»‹' : 'Chi tiáº¿t Ä‘Æ¡n vá»‹'}
+                {modalMode === 'create' ? 'Thêm nhà cung cấp' : modalMode === 'edit' ? 'Sửa nhà cung cấp' : 'Chi tiết nhà cung cấp'}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#fff" />
@@ -268,7 +268,7 @@ export default function SuppliersScreen() {
             </LinearGradient>
 
             <ScrollView style={styles.modalBody}>
-              <Text style={styles.label}>MÃ£ Ä‘Æ¡n vá»‹ *</Text>
+              <Text style={styles.label}>Mã nhà cung cấp *</Text>
               <RNTextInput
                 style={styles.input}
                 value={formData.code}
@@ -277,7 +277,7 @@ export default function SuppliersScreen() {
                 editable={modalMode !== 'view'}
               />
 
-              <Text style={styles.label}>TÃªn Ä‘Æ¡n vá»‹ *</Text>
+              <Text style={styles.label}>Tên nhà cung cấp *</Text>
               <RNTextInput
                 style={styles.input}
                 value={formData.name}
@@ -286,12 +286,12 @@ export default function SuppliersScreen() {
                 editable={modalMode !== 'view'}
               />
 
-              <Text style={styles.label}>MÃ´ táº£</Text>
+              <Text style={styles.label}>Mô tả</Text>
               <RNTextInput
                 style={[styles.input, styles.textArea]}
                 value={formData.description}
                 onChangeText={(text) => setFormData({ ...formData, description: text })}
-                placeholder="MÃ´ táº£ chi tiáº¿t..."
+                placeholder="Mô tả chi tiết..."
                 multiline
                 numberOfLines={3}
                 editable={modalMode !== 'view'}
@@ -301,10 +301,10 @@ export default function SuppliersScreen() {
             {modalMode !== 'view' && (
               <View style={styles.modalFooter}>
                 <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setModalVisible(false)} disabled={modalLoading}>
-                  <Text style={styles.cancelButtonText}>Há»§y</Text>
+                  <Text style={styles.cancelButtonText}>Hủy</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.modalButton, styles.saveButton]} onPress={handleModalSubmit} disabled={modalLoading}>
-                  {modalLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveButtonText}>{modalMode === 'create' ? 'Táº¡o' : 'LÆ°u'}</Text>}
+                  {modalLoading ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.saveButtonText}>{modalMode === 'create' ? 'Tạo' : 'Lưu'}</Text>}
                 </TouchableOpacity>
               </View>
             )}
@@ -343,6 +343,3 @@ const styles = StyleSheet.create({
   cancelButtonText: { fontSize: 16, fontWeight: '600', color: '#666' },
   saveButtonText: { fontSize: 16, fontWeight: '600', color: '#fff' },
 });
-
-
-

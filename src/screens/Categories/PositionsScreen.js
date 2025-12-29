@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ export default function PositionsScreen() {
   const navigation = useNavigation();
   const { api } = useApi();
 
-  const [positions, setpositions] = useState([]);
+  const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,7 +31,7 @@ export default function PositionsScreen() {
   // Modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
-  const [selectedposition, setSelectedposition] = useState(null);
+  const [selectedPosition, setSelectedPosition] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
 
   // Form state
@@ -47,21 +47,21 @@ export default function PositionsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchpositions();
+      fetchPositions();
     }, [])
   );
 
-  const fetchpositions = async () => {
+  const fetchPositions = async () => {
     try {
       setLoading(true);
       const response = await api.get('/api/positions');
       const positionsData = Array.isArray(response.data)
         ? response.data
         : (response.data?.data || []);
-      setpositions(positionsData);
+      setPositions(positionsData);
     } catch (error) {
       console.error('Error fetching positions:', error);
-      Alert.error('Lỗi', 'Không thể tải danh sách đơn vị tính');
+      Alert.error('Lỗi', 'Không thể tải danh sách chức vụ');
     } finally {
       setLoading(false);
     }
@@ -69,13 +69,13 @@ export default function PositionsScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchpositions();
+    await fetchPositions();
     setRefreshing(false);
   };
 
   const handleAdd = () => {
     setFormData({ code: '', name: '', description: '' });
-    setSelectedposition(null);
+    setSelectedPosition(null);
     setModalMode('create');
     setModalVisible(true);
   };
@@ -86,7 +86,7 @@ export default function PositionsScreen() {
       name: position.name || '',
       description: position.description || '',
     });
-    setSelectedposition(position);
+    setSelectedPosition(position);
     setModalMode('edit');
     setModalVisible(true);
   };
@@ -97,7 +97,7 @@ export default function PositionsScreen() {
       name: position.name || '',
       description: position.description || '',
     });
-    setSelectedposition(position);
+    setSelectedPosition(position);
     setModalMode('view');
     setModalVisible(true);
   };
@@ -106,19 +106,19 @@ export default function PositionsScreen() {
     const position = positions.find(u => u.id === positionId);
     Alert.confirm(
       'Xác nhận xóa',
-      `Bạn có chắc chắn muốn xóa đơn vị "${position?.name}"?`,
+      `Bạn có chắc chắn muốn xóa chức vụ "${position?.name}"?`,
       async () => {
         const positionToDelete = positions.find(u => u.id === positionId);
-        setpositions(positions.filter(u => u.id !== positionId));
+        setPositions(positions.filter(u => u.id !== positionId));
 
         try {
           await api.delete(`/api/positions/${positionId}`);
-          Alert.success('Xóa thành công!', `Đơn vị "${positionToDelete?.name}" đã được xóa.`);
+          Alert.success('Xóa thành công!', `Chức vụ "${positionToDelete?.name}" đã được xóa.`);
         } catch (error) {
           if (positionToDelete) {
-            setpositions(prevpositions => [...prevpositions, positionToDelete]);
+            setPositions(prevPositions => [...prevPositions, positionToDelete]);
           }
-          Alert.error('Lỗi', 'Không thể xóa đơn vị. Vui lòng thử lại.');
+          Alert.error('Lỗi', 'Không thể xóa chức vụ. Vui lòng thử lại.');
         }
       }
     );
@@ -126,7 +126,7 @@ export default function PositionsScreen() {
 
   const handleModalSubmit = async () => {
     if (!formData.code.trim() || !formData.name.trim()) {
-      Alert.error('Lỗi', 'Vui lòng nhập đầy đủ mã và Tên chức vụ');
+      Alert.error('Lỗi', 'Vui lòng nhập đầy đủ mã và tên chức vụ');
       return;
     }
 
@@ -140,26 +140,26 @@ export default function PositionsScreen() {
       };
 
       if (modalMode === 'edit') {
-        await api.put(`/api/positions/${selectedposition.id}`, dataToSend);
-        setpositions(positions.map(u => u.id === selectedposition.id ? { ...u, ...dataToSend } : u));
-        Alert.success('Cập nhật thành công!', 'Thông tin đơn vị đã được cập nhật.');
+        await api.put(`/api/positions/${selectedPosition.id}`, dataToSend);
+        setPositions(positions.map(u => u.id === selectedPosition.id ? { ...u, ...dataToSend } : u));
+        Alert.success('Cập nhật thành công!', 'Thông tin chức vụ đã được cập nhật.');
       } else {
         const response = await api.post('/api/positions', dataToSend);
-        setpositions([response.data, ...positions]);
-        Alert.success('Tạo thành công!', 'Đơn vị mới đã được thêm vào hệ thống.');
+        setPositions([response.data, ...positions]);
+        Alert.success('Tạo thành công!', 'Chức vụ mới đã được thêm vào hệ thống.');
       }
 
       setModalVisible(false);
-      await fetchpositions();
+      await fetchPositions();
     } catch (error) {
       console.error('Error saving position:', error);
-      Alert.error('Lỗi', error.response?.data?.message || 'Không thể lưu thông tin đơn vị');
+      Alert.error('Lỗi', error.response?.data?.message || 'Không thể lưu thông tin chức vụ');
     } finally {
       setModalLoading(false);
     }
   };
 
-  const getFilteredpositions = () => {
+  const getFilteredPositions = () => {
     return positions.filter(position => {
       const searchLower = searchQuery.toLowerCase();
       return (
@@ -170,7 +170,7 @@ export default function PositionsScreen() {
     });
   };
 
-  const renderpositionItem = ({ item: position }) => (
+  const renderPositionItem = ({ item: position }) => (
     <ListCard
       title={position.name}
       subtitle={position.code}
@@ -199,7 +199,7 @@ export default function PositionsScreen() {
     );
   }
 
-  const filteredpositions = getFilteredpositions();
+  const filteredPositions = getFilteredPositions();
 
   return (
     <View style={styles.container}>
@@ -211,7 +211,7 @@ export default function PositionsScreen() {
           <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
           <RNTextInput
             style={styles.searchInput}
-            placeholder="Tìm kiếm đơn vị..."
+            placeholder="Tìm kiếm chức vụ..."
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor="#999"
@@ -226,8 +226,8 @@ export default function PositionsScreen() {
 
       {/* List */}
       <FlatList
-        data={filteredpositions}
-        renderItem={renderpositionItem}
+        data={filteredPositions}
+        renderItem={renderPositionItem}
         keyExtractor={item => item.id?.toString()}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -235,7 +235,7 @@ export default function PositionsScreen() {
           <View style={styles.emptyContainer}>
             <Ionicons name="briefcase-outline" size={64} color="#ccc" />
             <Text style={styles.emptyText}>
-              {searchQuery ? 'Không tìm thấy kết quả' : 'Chưa có đơn vị tính nào'}
+              {searchQuery ? 'Không tìm thấy kết quả' : 'Chưa có chức vụ nào'}
             </Text>
           </View>
         }
@@ -257,7 +257,7 @@ export default function PositionsScreen() {
               style={styles.modalHeader}
             >
               <Text style={styles.modalTitle}>
-                {modalMode === 'create' ? 'Thêm đơn vị' : modalMode === 'edit' ? 'Sửa đơn vị' : 'Chi tiết đơn vị'}
+                {modalMode === 'create' ? 'Thêm chức vụ' : modalMode === 'edit' ? 'Sửa chức vụ' : 'Chi tiết chức vụ'}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#fff" />
@@ -271,7 +271,6 @@ export default function PositionsScreen() {
                 value={formData.code}
                 onChangeText={(text) => setFormData({ ...formData, code: text })}
                 placeholder="VD: GD"
-                
                 editable={modalMode !== 'view'}
               />
 
@@ -320,7 +319,7 @@ const styles = StyleSheet.create({
   searchContainer: { backgroundColor: '#fff', paddingHorizontal: 15, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
   searchInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f5', borderRadius: 8, paddingHorizontal: 12 },
   searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, paddingVertical: 10, fontSize: 16, color: '#333', fontFamily: 'System' },
+  searchInput: { flex: 1, paddingVertical: 10, fontSize: 16, color: '#333' },
   listContent: { padding: 15 },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   emptyText: { marginTop: 16, fontSize: 16, color: '#999' },
@@ -332,7 +331,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
   modalBody: { padding: 20 },
   label: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 8, marginTop: 8 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, fontSize: 16, color: '#333', fontFamily: 'System', backgroundColor: '#fff', fontFamily: 'System' },
+  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, fontSize: 16, color: '#333', backgroundColor: '#fff' },
   textArea: { height: 80, textAlignVertical: 'top' },
   modalFooter: { flexDirection: 'row', padding: 20, borderTopWidth: 1, borderTopColor: '#eee' },
   modalButton: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center' },
@@ -341,8 +340,3 @@ const styles = StyleSheet.create({
   cancelButtonText: { fontSize: 16, fontWeight: '600', color: '#666' },
   saveButtonText: { fontSize: 16, fontWeight: '600', color: '#fff' },
 });
-
-
-
-
-

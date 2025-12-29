@@ -8,7 +8,7 @@ module.exports = {
     updates: {
     "url": "https://u.expo.dev/27fadefb-6f07-4078-aa73-1e53807a7216"
     },
-  runtimeVersion: {
+    runtimeVersion: {
     "policy": "appVersion"
     },
     splash: {
@@ -20,6 +20,7 @@ module.exports = {
       supportsTablet: true
     },
     android: {
+      package: "com.stockflow.app",
       adaptiveIcon: {
         backgroundColor: "#ffffff"
       }

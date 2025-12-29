@@ -29,7 +29,7 @@ export function ApiProvider({ children }) {
   const LOCAL_URL = 'http://192.168.1.139:3001'; // Change 192.168.1.139 to your actual IP
   
   // Use LOCAL_URL for testing, change to PRODUCTION_URL for production
-  const USE_LOCAL = false; // Set to false for production
+  const USE_LOCAL = false; // Set to true for localhost testing
   
   const BASE_URL = currentBaseUrl || (USE_LOCAL ? LOCAL_URL : PRODUCTION_URL);
   
@@ -100,6 +100,18 @@ export function ApiProvider({ children }) {
       return response;
     },
     async (error) => {
+      // Handle different error types
+      if (error.code === 'ECONNABORTED') {
+        console.error('Request timeout:', error.message);
+        error.customMessage = 'Kết nối timeout. Vui lòng kiểm tra kết nối mạng và thử lại.';
+      } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+        console.error('Connection error:', error.message);
+        error.customMessage = 'Không thể kết nối đến server. Vui lòng kiểm tra IP server.';
+      } else if (!error.response) {
+        console.error('Network error:', error.message);
+        error.customMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet.';
+      }
+
       if (error.response?.status === 401) {
         // Token expired or invalid - clear auth data only (keep query cache)
         await clearAuthStorage();

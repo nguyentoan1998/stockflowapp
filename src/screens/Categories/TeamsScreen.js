@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ export default function TeamsScreen() {
   const navigation = useNavigation();
   const { api } = useApi();
 
-  const [teams, setteams] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,7 +31,7 @@ export default function TeamsScreen() {
   // Modal state
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
-  const [selectedteam, setSelectedteam] = useState(null);
+  const [selectedTeam, setSelectedTeam] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
 
   // Form state
@@ -47,21 +47,21 @@ export default function TeamsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchteams();
+      fetchTeams();
     }, [])
   );
 
-  const fetchteams = async () => {
+  const fetchTeams = async () => {
     try {
       setLoading(true);
       const response = await api.get('/api/teams');
       const teamsData = Array.isArray(response.data)
         ? response.data
         : (response.data?.data || []);
-      setteams(teamsData);
+      setTeams(teamsData);
     } catch (error) {
       console.error('Error fetching teams:', error);
-      Alert.error('Lỗi', 'Không thể tải danh sách đơn vị tính');
+      Alert.error('Lỗi', 'Không thể tải danh sách đội nhóm');
     } finally {
       setLoading(false);
     }
@@ -69,13 +69,13 @@ export default function TeamsScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchteams();
+    await fetchTeams();
     setRefreshing(false);
   };
 
   const handleAdd = () => {
     setFormData({ code: '', name: '', description: '' });
-    setSelectedteam(null);
+    setSelectedTeam(null);
     setModalMode('create');
     setModalVisible(true);
   };
@@ -86,7 +86,7 @@ export default function TeamsScreen() {
       name: team.name || '',
       description: team.description || '',
     });
-    setSelectedteam(team);
+    setSelectedTeam(team);
     setModalMode('edit');
     setModalVisible(true);
   };
@@ -97,7 +97,7 @@ export default function TeamsScreen() {
       name: team.name || '',
       description: team.description || '',
     });
-    setSelectedteam(team);
+    setSelectedTeam(team);
     setModalMode('view');
     setModalVisible(true);
   };
@@ -106,19 +106,19 @@ export default function TeamsScreen() {
     const team = teams.find(u => u.id === teamId);
     Alert.confirm(
       'Xác nhận xóa',
-      `Bạn có chắc chắn muốn xóa đơn vị "${team?.name}"?`,
+      `Bạn có chắc chắn muốn xóa đội nhóm "${team?.name}"?`,
       async () => {
         const teamToDelete = teams.find(u => u.id === teamId);
-        setteams(teams.filter(u => u.id !== teamId));
+        setTeams(teams.filter(u => u.id !== teamId));
 
         try {
           await api.delete(`/api/teams/${teamId}`);
-          Alert.success('Xóa thành công!', `Đơn vị "${teamToDelete?.name}" đã được xóa.`);
+          Alert.success('Xóa thành công!', `Đội nhóm "${teamToDelete?.name}" đã được xóa.`);
         } catch (error) {
           if (teamToDelete) {
-            setteams(prevteams => [...prevteams, teamToDelete]);
+            setTeams(prevTeams => [...prevTeams, teamToDelete]);
           }
-          Alert.error('Lỗi', 'Không thể xóa đơn vị. Vui lòng thử lại.');
+          Alert.error('Lỗi', 'Không thể xóa đội nhóm. Vui lòng thử lại.');
         }
       }
     );
@@ -126,7 +126,7 @@ export default function TeamsScreen() {
 
   const handleModalSubmit = async () => {
     if (!formData.code.trim() || !formData.name.trim()) {
-      Alert.error('Lỗi', 'Vui lòng nhập đầy đủ mã và Tên đội nhóm');
+      Alert.error('Lỗi', 'Vui lòng nhập đầy đủ mã và tên đội nhóm');
       return;
     }
 
@@ -140,26 +140,26 @@ export default function TeamsScreen() {
       };
 
       if (modalMode === 'edit') {
-        await api.put(`/api/teams/${selectedteam.id}`, dataToSend);
-        setteams(teams.map(u => u.id === selectedteam.id ? { ...u, ...dataToSend } : u));
-        Alert.success('Cập nhật thành công!', 'Thông tin đơn vị đã được cập nhật.');
+        await api.put(`/api/teams/${selectedTeam.id}`, dataToSend);
+        setTeams(teams.map(u => u.id === selectedTeam.id ? { ...u, ...dataToSend } : u));
+        Alert.success('Cập nhật thành công!', 'Thông tin đội nhóm đã được cập nhật.');
       } else {
         const response = await api.post('/api/teams', dataToSend);
-        setteams([response.data, ...teams]);
-        Alert.success('Tạo thành công!', 'Đơn vị mới đã được thêm vào hệ thống.');
+        setTeams([response.data, ...teams]);
+        Alert.success('Tạo thành công!', 'Đội nhóm mới đã được thêm vào hệ thống.');
       }
 
       setModalVisible(false);
-      await fetchteams();
+      await fetchTeams();
     } catch (error) {
       console.error('Error saving team:', error);
-      Alert.error('Lỗi', error.response?.data?.message || 'Không thể lưu thông tin đơn vị');
+      Alert.error('Lỗi', error.response?.data?.message || 'Không thể lưu thông tin đội nhóm');
     } finally {
       setModalLoading(false);
     }
   };
 
-  const getFilteredteams = () => {
+  const getFilteredTeams = () => {
     return teams.filter(team => {
       const searchLower = searchQuery.toLowerCase();
       return (
@@ -170,7 +170,7 @@ export default function TeamsScreen() {
     });
   };
 
-  const renderteamItem = ({ item: team }) => (
+  const renderTeamItem = ({ item: team }) => (
     <ListCard
       title={team.name}
       subtitle={team.code}
@@ -199,7 +199,7 @@ export default function TeamsScreen() {
     );
   }
 
-  const filteredteams = getFilteredteams();
+  const filteredTeams = getFilteredTeams();
 
   return (
     <View style={styles.container}>
@@ -211,7 +211,7 @@ export default function TeamsScreen() {
           <Ionicons name="search" size={20} color="#999" style={styles.searchIcon} />
           <RNTextInput
             style={styles.searchInput}
-            placeholder="Tìm kiếm đơn vị..."
+            placeholder="Tìm kiếm đội nhóm..."
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor="#999"
@@ -226,8 +226,8 @@ export default function TeamsScreen() {
 
       {/* List */}
       <FlatList
-        data={filteredteams}
-        renderItem={renderteamItem}
+        data={filteredTeams}
+        renderItem={renderTeamItem}
         keyExtractor={item => item.id?.toString()}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -235,7 +235,7 @@ export default function TeamsScreen() {
           <View style={styles.emptyContainer}>
             <Ionicons name="people-outline" size={64} color="#ccc" />
             <Text style={styles.emptyText}>
-              {searchQuery ? 'Không tìm thấy kết quả' : 'Chưa có đơn vị tính nào'}
+              {searchQuery ? 'Không tìm thấy kết quả' : 'Chưa có đội nhóm nào'}
             </Text>
           </View>
         }
@@ -257,7 +257,7 @@ export default function TeamsScreen() {
               style={styles.modalHeader}
             >
               <Text style={styles.modalTitle}>
-                {modalMode === 'create' ? 'Thêm đơn vị' : modalMode === 'edit' ? 'Sửa đơn vị' : 'Chi tiết đơn vị'}
+                {modalMode === 'create' ? 'Thêm đội nhóm' : modalMode === 'edit' ? 'Sửa đội nhóm' : 'Chi tiết đội nhóm'}
               </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#fff" />
@@ -271,7 +271,6 @@ export default function TeamsScreen() {
                 value={formData.code}
                 onChangeText={(text) => setFormData({ ...formData, code: text })}
                 placeholder="VD: TEAM01"
-                
                 editable={modalMode !== 'view'}
               />
 
@@ -320,7 +319,7 @@ const styles = StyleSheet.create({
   searchContainer: { backgroundColor: '#fff', paddingHorizontal: 15, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
   searchInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f5', borderRadius: 8, paddingHorizontal: 12 },
   searchIcon: { marginRight: 8 },
-  searchInput: { flex: 1, paddingVertical: 10, fontSize: 16, color: '#333', fontFamily: 'System' },
+  searchInput: { flex: 1, paddingVertical: 10, fontSize: 16, color: '#333' },
   listContent: { padding: 15 },
   emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   emptyText: { marginTop: 16, fontSize: 16, color: '#999' },
@@ -332,7 +331,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
   modalBody: { padding: 20 },
   label: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 8, marginTop: 8 },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, fontSize: 16, color: '#333', fontFamily: 'System', backgroundColor: '#fff', fontFamily: 'System' },
+  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, fontSize: 16, color: '#333', backgroundColor: '#fff' },
   textArea: { height: 80, textAlignVertical: 'top' },
   modalFooter: { flexDirection: 'row', padding: 20, borderTopWidth: 1, borderTopColor: '#eee' },
   modalButton: { flex: 1, padding: 12, borderRadius: 8, alignItems: 'center' },
@@ -341,10 +340,3 @@ const styles = StyleSheet.create({
   cancelButtonText: { fontSize: 16, fontWeight: '600', color: '#666' },
   saveButtonText: { fontSize: 16, fontWeight: '600', color: '#fff' },
 });
-
-
-
-
-
-
-
