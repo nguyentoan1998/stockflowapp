@@ -263,7 +263,7 @@ export default function WarehouseManagementScreen() {
               mode="outlined"
               compact
               icon="package-variant"
-              onPress={() => Alert.alert('Chức năng', 'Xem tồn kho đang phát triển')}
+              onPress={() => navigation.navigate('InventoryCheckScreen', { warehouseId: warehouse.id, warehouseName: warehouse.name })}
               style={styles.actionButton}
             >
               Tồn kho

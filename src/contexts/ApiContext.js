@@ -29,7 +29,7 @@ export function ApiProvider({ children }) {
   const LOCAL_URL = 'http://192.168.1.139:3001'; // Change 192.168.1.139 to your actual IP
   
   // Use LOCAL_URL for testing, change to PRODUCTION_URL for production
-  const USE_LOCAL = false; // Set to true for localhost testing
+  const USE_LOCAL = true; // Set to true for localhost testing
   
   const BASE_URL = currentBaseUrl || (USE_LOCAL ? LOCAL_URL : PRODUCTION_URL);
   
@@ -113,6 +113,13 @@ export function ApiProvider({ children }) {
       }
 
       if (error.response?.status === 401) {
+        console.warn('⚠️ 401 Unauthorized - Token may be invalid or expired');
+        console.warn('Token details:', {
+          exists: !!(await TokenStorage.get()),
+          url: error.config?.baseURL + error.config?.url,
+          headers: error.config?.headers,
+        });
+        
         // Token expired or invalid - clear auth data only (keep query cache)
         await clearAuthStorage();
       }

@@ -177,7 +177,7 @@ export default function CustomersScreen() {
     <ListCard
       title={customer.name}
       subtitle={customer.code}
-      imageIcon="account-outline"
+      imageIcon="person-outline"
       details={[
         customer.description && {
           label: 'Mô tả',
@@ -236,7 +236,7 @@ export default function CustomersScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="account-outline" size={64} color="#ccc" />
+            <Ionicons name="person-outline" size={64} color="#ccc" />
             <Text style={styles.emptyText}>
               {searchQuery ? 'Không tìm thấy kết quả' : 'Chưa có khách hàng nào'}
             </Text>

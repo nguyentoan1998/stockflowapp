@@ -20,6 +20,23 @@ import ProductsScreen from '../screens/Categories/ProductsScreen';
 import ProductDetailScreen from '../screens/Categories/ProductDetailScreen';
 import ProductFormScreen from '../screens/Categories/ProductFormScreen';
 import ComingSoonScreen from '../screens/ComingSoonScreen';
+import WarehouseInventoryScreen from '../screens/warehouse/WarehouseInventoryScreen';
+import WarehouseInventoryDetailScreen from '../screens/warehouse/WarehouseInventoryDetailScreen';
+import WarehouseInputScreen from '../screens/warehouse/WarehouseInputScreen';
+import WarehouseInputFormScreen from '../screens/warehouse/WarehouseInputFormScreen';
+import WarehouseInputDetailScreen from '../screens/warehouse/WarehouseInputDetailScreen';
+import WarehouseOutputScreen from '../screens/warehouse/WarehouseOutputScreen';
+import WarehouseOutputFormScreen from '../screens/warehouse/WarehouseOutputFormScreen';
+import WarehouseOutputDetailScreen from '../screens/warehouse/WarehouseOutputDetailScreen';
+import WarehouseTransferScreen from '../screens/warehouse/WarehouseTransferScreen';
+import WarehouseTransferFormScreen from '../screens/warehouse/WarehouseTransferFormScreen';
+import WarehouseTransferDetailScreen from '../screens/warehouse/WarehouseTransferDetailScreen';
+import InventoryCheckScreen from '../screens/warehouse/InventoryCheckScreen';
+import InventoryCheckFormScreen from '../screens/warehouse/InventoryCheckFormScreen';
+import InventoryCheckDetailScreen from '../screens/warehouse/InventoryCheckDetailScreen';
+import InventoryAdjustmentScreen from '../screens/warehouse/InventoryAdjustmentScreen';
+import InventoryAdjustmentFormScreen from '../screens/warehouse/InventoryAdjustmentFormScreen';
+import InventoryAdjustmentDetailScreen from '../screens/warehouse/InventoryAdjustmentDetailScreen';
 
 const Stack = createStackNavigator();
 
@@ -191,12 +208,142 @@ export default function ManagementStack() {
       <Stack.Screen name="Warranty" component={ComingSoonScreen} options={{ title: 'Hàng bảo hành' }} />
       <Stack.Screen name="AccountsReceivable" component={ComingSoonScreen} options={{ title: 'Công nợ phải thu' }} />
       <Stack.Screen name="SalesReport" component={ComingSoonScreen} options={{ title: 'Báo cáo bán hàng' }} />
-      <Stack.Screen name="Inventory" component={ComingSoonScreen} options={{ title: 'Tồn kho' }} />
-      <Stack.Screen name="Input" component={ComingSoonScreen} options={{ title: 'Nhập kho' }} />
-      <Stack.Screen name="Output" component={ComingSoonScreen} options={{ title: 'Xuất kho' }} />
-      <Stack.Screen name="Transfer" component={ComingSoonScreen} options={{ title: 'Chuyển kho' }} />
-      <Stack.Screen name="InventoryCheck" component={ComingSoonScreen} options={{ title: 'Kiểm kê' }} />
-      <Stack.Screen name="Adjustment" component={ComingSoonScreen} options={{ title: 'Điều chỉnh' }} />
+      <Stack.Screen 
+        name="Inventory" 
+        component={WarehouseInventoryScreen} 
+        options={{ 
+          title: 'Tồn kho',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="WarehouseInventoryDetail" 
+        component={WarehouseInventoryDetailScreen} 
+        options={{ 
+          title: 'Chi tiết kho hàng',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="Input" 
+        component={WarehouseInputScreen} 
+        options={{ 
+          title: 'Nhập kho',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="WarehouseInputDetail" 
+        component={WarehouseInputDetailScreen} 
+        options={{ 
+          title: 'Chi tiết phiếu nhập',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="WarehouseInputForm" 
+        component={WarehouseInputFormScreen} 
+        options={{ 
+          title: 'Phiếu nhập kho',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="Output" 
+        component={WarehouseOutputScreen} 
+        options={{ 
+          title: 'Xuất kho',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="WarehouseOutputDetail" 
+        component={WarehouseOutputDetailScreen} 
+        options={{ 
+          title: 'Chi tiết phiếu xuất',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="WarehouseOutputForm" 
+        component={WarehouseOutputFormScreen} 
+        options={{ 
+          title: 'Phiếu xuất kho',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="Transfer" 
+        component={WarehouseTransferScreen} 
+        options={{ 
+          title: 'Chuyển kho',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="WarehouseTransferDetail" 
+        component={WarehouseTransferDetailScreen} 
+        options={{ 
+          title: 'Chi tiết phiếu chuyển kho',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="WarehouseTransferForm" 
+        component={WarehouseTransferFormScreen} 
+        options={{ 
+          title: 'Phiếu chuyển kho',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="InventoryCheck" 
+        component={InventoryCheckScreen} 
+        options={{ 
+          title: 'Kiểm kê',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="InventoryCheckDetail" 
+        component={InventoryCheckDetailScreen} 
+        options={{ 
+          title: 'Chi tiết phiếu kiểm kê',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="InventoryCheckForm" 
+        component={InventoryCheckFormScreen} 
+        options={{ 
+          title: 'Phiếu kiểm kê',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="Adjustment" 
+        component={InventoryAdjustmentScreen} 
+        options={{ 
+          title: 'Điều chỉnh kho',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="InventoryAdjustmentDetail" 
+        component={InventoryAdjustmentDetailScreen} 
+        options={{ 
+          title: 'Chi tiết phiếu điều chỉnh',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="InventoryAdjustmentForm" 
+        component={InventoryAdjustmentFormScreen} 
+        options={{ 
+          title: 'Phiếu điều chỉnh kho',
+          headerBackTitleVisible: false,
+        }} 
+      />
       <Stack.Screen name="ProductionOrder" component={ComingSoonScreen} options={{ title: 'Lệnh sản xuất' }} />
       <Stack.Screen name="ProductionPlan" component={ComingSoonScreen} options={{ title: 'Kế hoạch SX' }} />
       <Stack.Screen name="MaterialRequest" component={ComingSoonScreen} options={{ title: 'Yêu cầu vật tư' }} />

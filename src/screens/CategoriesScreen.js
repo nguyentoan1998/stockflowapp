@@ -29,7 +29,7 @@ export default function CategoriesScreen() {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(width));
   const [cardAnimations] = useState(
-    Array(9).fill(0).map(() => new Animated.Value(0))
+    Array(10).fill(0).map(() => new Animated.Value(0))
   );
 
   useEffect(() => {
@@ -127,6 +127,13 @@ export default function CategoriesScreen() {
       color: '#FF5722',
       count: 6,
     },
+    {
+      id: 'inventory',
+      title: 'Tồn kho',
+      icon: 'package-check',
+      color: '#00897B',
+      count: 234,
+    },
   ];
 
   const handleModulePress = (module) => {
@@ -169,6 +176,9 @@ export default function CategoriesScreen() {
           break;
         case 'warehouses':
           navigation.navigate('Warehouses');
+          break;
+        case 'inventory':
+          navigation.navigate('Inventory');
           break;
         case 'employees':
           navigation.navigate('Staff');
