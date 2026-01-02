@@ -14,10 +14,9 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import { useApi } from '../../contexts/ApiContext';
 import CustomAlert from '../../components/CustomAlert';
 import { createAlertHelper } from '../../utils/alertHelper';
-// TODO: Implement ProductSpecifications, ProductUnitConversions, ProductBOM components
-// import ProductSpecifications from '../../components/ProductSpecifications';
-// import ProductUnitConversions from '../../components/ProductUnitConversions';
-// import ProductBOM from '../../components/ProductBOM';
+import ProductSpecifications from '../../components/ProductSpecifications';
+import ProductUnitConversions from '../../components/ProductUnitConversions';
+import ProductBOM from '../../components/ProductBOM';
 
 export default function ProductDetailScreen() {
   const navigation = useNavigation();
@@ -286,24 +285,31 @@ export default function ProductDetailScreen() {
         return renderInfoTab();
       case 'specs':
         return (
-          <View style={styles.tabContentContainer}>
-            <Text style={styles.comingSoonText}>Tính năng đang phát triển...</Text>
-            {/* TODO: Implement ProductSpecifications component */}
-          </View>
+          <ProductSpecifications
+            specifications={specifications}
+            warehouses={warehouses}
+            onUpdate={handleUpdateSpecifications}
+            loading={loading}
+          />
         );
       case 'conversions':
         return (
-          <View style={styles.tabContentContainer}>
-            <Text style={styles.comingSoonText}>Tính năng đang phát triển...</Text>
-            {/* TODO: Implement ProductUnitConversions component */}
-          </View>
+          <ProductUnitConversions
+            conversions={unitConversions}
+            units={units}
+            onUpdate={handleUpdateUnitConversions}
+            loading={loading}
+          />
         );
       case 'bom':
         return (
-          <View style={styles.tabContentContainer}>
-            <Text style={styles.comingSoonText}>Tính năng đang phát triển...</Text>
-            {/* TODO: Implement ProductBOM component */}
-          </View>
+          <ProductBOM
+            bom={bom}
+            materials={allProducts}
+            units={units}
+            onUpdate={handleUpdateBOM}
+            loading={loading}
+          />
         );
       default:
         return null;

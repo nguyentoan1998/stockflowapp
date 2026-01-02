@@ -61,11 +61,12 @@ export default function WarehouseInputDetailScreen() {
           text: 'Xác nhận',
           onPress: async () => {
             try {
-              await api.put(`/api/inventory_transactions/${inputId}`, { status: 'completed' });
-              AlertHelper.success('Thành công!', 'Phiếu nhập đã được hoàn thành');
+              // Note: inventory_transactions doesn't have a status field
+              // The transaction is considered completed once created
+              AlertHelper.success('Thành công!', 'Phiếu nhập đã được xác nhận');
               await fetchInput();
             } catch (error) {
-              AlertHelper.error('Lỗi', 'Không thể hoàn thành phiếu nhập');
+              AlertHelper.error('Lỗi', 'Không thể xác nhận phiếu nhập');
             }
           },
         },
@@ -213,26 +214,16 @@ export default function WarehouseInputDetailScreen() {
 
         {/* Action Buttons */}
         <View style={styles.actionSection}>
-          {input.status === 'draft' && (
-            <>
-              <TouchableOpacity style={[styles.button, styles.buttonEdit]} onPress={handleEdit}>
-                <MaterialCommunityIcons name="pencil" size={20} color="#fff" />
-                <Text style={styles.buttonText}>Sửa</Text>
-              </TouchableOpacity>
+          {/* Note: inventory_transactions doesn't have status field, so we show edit button always */}
+          <TouchableOpacity style={[styles.button, styles.buttonEdit]} onPress={handleEdit}>
+            <MaterialCommunityIcons name="pencil" size={20} color="#fff" />
+            <Text style={styles.buttonText}>Sửa</Text>
+          </TouchableOpacity>
 
-              <TouchableOpacity style={[styles.button, styles.buttonComplete]} onPress={handleComplete}>
-                <MaterialCommunityIcons name="check" size={20} color="#fff" />
-                <Text style={styles.buttonText}>Hoàn thành</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {input.status === 'completed' && (
-            <TouchableOpacity style={[styles.button, styles.buttonDisabled]} disabled>
-              <MaterialCommunityIcons name="check-circle" size={20} color="#fff" />
-              <Text style={styles.buttonText}>Đã hoàn thành</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity style={[styles.button, styles.buttonComplete]} onPress={handleComplete}>
+            <MaterialCommunityIcons name="check" size={20} color="#fff" />
+            <Text style={styles.buttonText}>Xác nhận</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </ScrollView>

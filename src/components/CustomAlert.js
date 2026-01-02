@@ -39,32 +39,32 @@ const CustomAlert = ({ visible, type = 'info', title, message, onClose, onConfir
       case 'success':
         return {
           name: 'checkmark-circle',
-          color: '#4CAF50',
-          bgColor: '#E8F5E9',
+          color: '#10B981',
+          bgColor: '#D1FAE5',
         };
       case 'error':
         return {
           name: 'close-circle',
-          color: '#F44336',
-          bgColor: '#FFEBEE',
+          color: '#EF4444',
+          bgColor: '#FEE2E2',
         };
       case 'warning':
         return {
           name: 'warning',
-          color: '#FF9800',
-          bgColor: '#FFF3E0',
+          color: '#F59E0B',
+          bgColor: '#FEF3C7',
         };
       case 'confirm':
         return {
           name: 'help-circle',
-          color: '#2196F3',
-          bgColor: '#E3F2FD',
+          color: '#3B82F6',
+          bgColor: '#DBEAFE',
         };
       default:
         return {
           name: 'information-circle',
-          color: '#2196F3',
-          bgColor: '#E3F2FD',
+          color: '#3B82F6',
+          bgColor: '#DBEAFE',
         };
     }
   };
@@ -103,7 +103,7 @@ const CustomAlert = ({ visible, type = 'info', title, message, onClose, onConfir
           >
             {/* Icon */}
             <View style={[styles.iconContainer, { backgroundColor: iconConfig.bgColor }]}>
-              <Ionicons name={iconConfig.name} size={48} color={iconConfig.color} />
+              <Ionicons name={iconConfig.name} size={56} color={iconConfig.color} />
             </View>
 
             {/* Title */}
@@ -153,7 +153,7 @@ const CustomAlert = ({ visible, type = 'info', title, message, onClose, onConfir
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -162,42 +162,49 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   alertContainer: {
-    width: '85%',
+    width: '100%',
     maxWidth: 400,
     backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: 24,
+    padding: 32,
     alignItems: 'center',
-    elevation: 10,
+    elevation: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
-    shadowRadius: 10,
+    shadowRadius: 20,
   },
   iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#212121',
-    marginBottom: 8,
+    color: '#111827',
+    marginBottom: 12,
     textAlign: 'center',
-    letterSpacing: 0.25,
+    letterSpacing: 0.2,
   },
   message: {
-    fontSize: 15,
-    color: '#666',
+    fontSize: 16,
+    color: '#6B7280',
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 22,
+    marginBottom: 28,
+    lineHeight: 24,
+    paddingHorizontal: 8,
   },
   buttonContainer: {
     flexDirection: 'row',
@@ -206,46 +213,48 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 16,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 56,
   },
   cancelButton: {
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
   },
   cancelButtonText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#666',
+    color: '#6B7280',
   },
   confirmButton: {
-    backgroundColor: '#2196F3',
-    elevation: 2,
-    shadowColor: '#2196F3',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    backgroundColor: '#3B82F6',
+    elevation: 4,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
   confirmButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#fff',
+    letterSpacing: 0.3,
   },
   singleButton: {
-    elevation: 2,
+    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   singleButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#fff',
+    letterSpacing: 0.3,
   },
 });
 

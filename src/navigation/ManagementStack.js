@@ -38,6 +38,16 @@ import InventoryAdjustmentScreen from '../screens/warehouse/InventoryAdjustmentS
 import InventoryAdjustmentFormScreen from '../screens/warehouse/InventoryAdjustmentFormScreen';
 import InventoryAdjustmentDetailScreen from '../screens/warehouse/InventoryAdjustmentDetailScreen';
 
+// Purchase screens
+import PurchaseOrdersScreen from '../screens/purchases/PurchaseOrdersScreen';
+import PurchaseOrderDetailScreen from '../screens/purchases/PurchaseOrderDetailScreen';
+import PurchaseOrderFormScreen from '../screens/purchases/PurchaseOrderFormScreen';
+import PurchasingScreen from '../screens/purchases/PurchasingScreen';
+import PurchasingDetailScreen from '../screens/purchases/PurchasingDetailScreen';
+import PurchasingFormScreen from '../screens/purchases/PurchasingFormScreen';
+import ReturnErrorScreen from '../screens/purchases/ReturnErrorScreen';
+import ReturnErrorFormScreen from '../screens/purchases/ReturnErrorFormScreen';
+
 const Stack = createStackNavigator();
 
 export default function ManagementStack() {
@@ -198,9 +208,63 @@ export default function ManagementStack() {
       <Stack.Screen name="Expense" component={ComingSoonScreen} options={{ title: 'Chi' }} />
       <Stack.Screen name="Income" component={ComingSoonScreen} options={{ title: 'Thu' }} />
       <Stack.Screen name="FundReport" component={ComingSoonScreen} options={{ title: 'Báo cáo quỹ' }} />
-      <Stack.Screen name="PurchaseOrders" component={ComingSoonScreen} options={{ title: 'Đơn mua hàng' }} />
-      <Stack.Screen name="Purchasing" component={ComingSoonScreen} options={{ title: 'Mua hàng' }} />
-      <Stack.Screen name="ReturnError" component={ComingSoonScreen} options={{ title: 'Trả hàng mua' }} />
+      <Stack.Screen 
+        name="PurchaseOrders" 
+        component={PurchaseOrdersScreen} 
+        options={{ 
+          title: 'Đơn hàng mua',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="PurchaseOrderDetail" 
+        component={PurchaseOrderDetailScreen} 
+        options={{ 
+          title: 'Chi tiết đơn hàng',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="PurchaseOrderForm" 
+        component={PurchaseOrderFormScreen} 
+        options={({ route }) => ({ 
+          title: route.params?.mode === 'edit' ? 'Sửa đơn hàng' : 'Tạo đơn hàng mới',
+          headerBackTitleVisible: false,
+        })} 
+      />
+      <Stack.Screen 
+        name="Purchasing" 
+        component={PurchasingScreen} 
+        options={{ 
+          title: 'Mua hàng',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="PurchasingDetail" 
+        component={PurchasingDetailScreen} 
+        options={{ 
+          title: 'Chi tiết phiếu mua hàng',
+          headerBackTitleVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="PurchasingForm" 
+        component={PurchasingFormScreen} 
+        options={({ route }) => ({ 
+          title: route.params?.receiveId ? 'Sửa phiếu mua hàng' : 'Tạo phiếu mua hàng',
+          headerBackTitleVisible: false,
+        })} 
+      />
+      <Stack.Screen name="ReturnError" component={ReturnErrorScreen} options={{ title: 'Trả hàng mua' }} />
+      <Stack.Screen 
+        name="ReturnErrorForm" 
+        component={ReturnErrorFormScreen} 
+        options={({ route }) => ({ 
+          title: route.params?.returnItem ? 'Sửa phiếu trả hàng' : 'Tạo phiếu trả hàng',
+          headerBackTitleVisible: false,
+        })} 
+      />
       <Stack.Screen name="AccountsPayable" component={ComingSoonScreen} options={{ title: 'Công nợ phải trả' }} />
       <Stack.Screen name="Report" component={ComingSoonScreen} options={{ title: 'Báo cáo mua hàng' }} />
       <Stack.Screen name="SalesOrders" component={ComingSoonScreen} options={{ title: 'Đơn đặt hàng' }} />

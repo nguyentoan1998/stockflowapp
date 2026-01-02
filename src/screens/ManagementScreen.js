@@ -47,7 +47,7 @@ export default function ManagementScreen() {
       icon: 'cart',
       items: [
         { id: 'purchase-orders', name: 'Đơn mua hàng', icon: 'document-text', color: '#5B9BF3', route: 'PurchaseOrders' },
-        { id: 'purchasing', name: 'Mua hàng', icon: 'bag-handle', color: '#8E44AD', route: 'Purchasing' },
+        { id: 'purchasing', name: 'Mua hàng', icon: 'bag-handle', color: '#4CAF50', route: 'Purchasing' },
         { id: 'purchase-return', name: 'Trả hàng mua', icon: 'return-down-back', color: '#E85D75', route: 'ReturnError' },
         { id: 'payable', name: 'Công nợ phải trả', icon: 'card', color: '#C0392B', route: 'AccountsPayable' },
         { id: 'purchase-report', name: 'Báo cáo', icon: 'pie-chart', color: '#2980B9', route: 'Report' },
