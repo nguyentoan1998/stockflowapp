@@ -29,7 +29,7 @@ export function ApiProvider({ children }) {
   const LOCAL_URL = 'http://192.168.1.139:3001'; // Change 192.168.1.139 to your actual IP
 
   // Use LOCAL_URL for testing, change to PRODUCTION_URL for production
-  const USE_LOCAL = true; // Set to true for localhost testing, false for production
+  const USE_LOCAL = false; // Set to true for localhost testing, false for production
 
   const BASE_URL = currentBaseUrl || (USE_LOCAL ? LOCAL_URL : PRODUCTION_URL);
 
