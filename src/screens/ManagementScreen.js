@@ -50,7 +50,7 @@ export default function ManagementScreen() {
         { id: 'purchasing', name: 'Mua hàng', icon: 'bag-handle', color: '#4CAF50', route: 'Purchasing' },
         { id: 'purchase-return', name: 'Trả hàng mua', icon: 'return-down-back', color: '#E85D75', route: 'ReturnError' },
         { id: 'payable', name: 'Công nợ phải trả', icon: 'card', color: '#C0392B', route: 'AccountsPayable' },
-        { id: 'purchase-report', name: 'Báo cáo', icon: 'pie-chart', color: '#2980B9', route: 'Report' },
+        { id: 'purchase-report', name: 'Báo cáo', icon: 'pie-chart', color: '#2980B9', route: 'PurchaseReports' },
       ],
     },
     {
@@ -58,10 +58,10 @@ export default function ManagementScreen() {
       icon: 'storefront',
       items: [
         { id: 'sales-orders', name: 'Đơn đặt hàng', icon: 'clipboard', color: '#E67E22', route: 'SalesOrders' },
-        { id: 'sales', name: 'Bán hàng', icon: 'cart', color: '#27AE60', route: 'Sales' },
-        { id: 'warranty', name: 'Hàng bảo hành', icon: 'shield-checkmark', color: '#3498DB', route: 'Warranty' },
+        { id: 'sales', name: 'Bán hàng', icon: 'cart', color: '#27AE60', route: 'SalesDeliveries' },
+        { id: 'warranty', name: 'Hàng bảo hành', icon: 'construct', color: '#F97316', route: 'WarrantyList' },
         { id: 'receivable', name: 'Công nợ phải thu', icon: 'cash', color: '#16A085', route: 'AccountsReceivable' },
-        { id: 'sales-report', name: 'Báo cáo', icon: 'bar-chart', color: '#9B59B6', route: 'SalesReport' },
+        { id: 'sales-report', name: 'Báo cáo', icon: 'bar-chart', color: '#9B59B6', route: 'SalesReports' },
       ],
     },
     {

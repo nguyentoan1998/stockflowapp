@@ -47,11 +47,23 @@ export default function PurchaseOrderFormScreen() {
   // Modal states
   const [supplierModalVisible, setSupplierModalVisible] = useState(false);
   const [productModalVisible, setProductModalVisible] = useState(false);
-  const [specificationModalVisible, setSpecificationModalVisible] = useState(false);
+  const [itemFormModalVisible, setItemFormModalVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [datePickerField, setDatePickerField] = useState(null); // 'order_date' or 'expected_delivery_date'
-  const [currentItemIndex, setCurrentItemIndex] = useState(null);
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [editingItemIndex, setEditingItemIndex] = useState(null);
+  const [selectedProductForItem, setSelectedProductForItem] = useState(null);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+
+  // Item form state
+  const [itemForm, setItemForm] = useState({
+    product_id: '',
+    product_specification_id: null,
+    quantity: '',
+    unit_id: '',
+    unit_price: '',
+    discount_percentage: '0',
+    tax_percentage: '0',
+  });
 
   // Alert
   const [alertConfig, setAlertConfig] = useState({ visible: false });
@@ -64,7 +76,7 @@ export default function PurchaseOrderFormScreen() {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      
+
       // Load suppliers, products, units in parallel
       const [suppliersRes, productsRes, unitsRes] = await Promise.all([
         api.get('/api/suppliers'),
@@ -72,9 +84,16 @@ export default function PurchaseOrderFormScreen() {
         api.get('/api/units'),
       ]);
 
-      setSuppliers(Array.isArray(suppliersRes.data) ? suppliersRes.data : (suppliersRes.data?.data || []));
-      setProducts(Array.isArray(productsRes.data) ? productsRes.data : (productsRes.data?.data || []));
-      setUnits(Array.isArray(unitsRes.data) ? unitsRes.data : (unitsRes.data?.data || []));
+      const suppliersData = Array.isArray(suppliersRes.data) ? suppliersRes.data : (suppliersRes.data?.data || []);
+      const productsData = Array.isArray(productsRes.data) ? productsRes.data : (productsRes.data?.data || []);
+      const unitsData = Array.isArray(unitsRes.data) ? unitsRes.data : (unitsRes.data?.data || []);
+
+      console.log('📦 Products loaded:', productsData.length);
+      console.log('📦 First product:', productsData[0]);
+
+      setSuppliers(suppliersData);
+      setProducts(productsData);
+      setUnits(unitsData);
 
       // If edit mode, load existing order
       if (isEditMode) {
@@ -154,49 +173,103 @@ export default function PurchaseOrderFormScreen() {
   };
 
   const handleAddItem = () => {
-    setCurrentItemIndex(null);
+    setEditingItemIndex(null);
+    setSelectedProductForItem(null);
+    setProductSearchQuery('');
+    setItemForm({
+      product_id: '',
+      product_specification_id: null,
+      quantity: '',
+      unit_id: '',
+      unit_price: '',
+      discount_percentage: '0',
+      tax_percentage: '0',
+    });
     setProductModalVisible(true);
   };
 
   const handleSelectProduct = (product) => {
-    // Only allow products WITH specifications
-    if (!product.product_specifications || product.product_specifications.length === 0) {
-      Alert.error('Không thể thêm', 'Chỉ có thể thêm sản phẩm có mã quy cách');
-      return;
-    }
+    const defaultUnitId = product.unit_id || units[0]?.id || '';
 
-    // Open specification modal
-    setSelectedProduct(product);
-    setProductModalVisible(false);
-    setSpecificationModalVisible(true);
-  };
-
-  const addItemWithSpecification = (product, specification) => {
-    const newItem = {
+    setSelectedProductForItem(product);
+    setItemForm({
       product_id: product.id,
-      product_specification_id: specification?.id || null,
+      product_specification_id: product.product_specifications?.[0]?.id || null,
       quantity: '',
-      unit_id: product.unit_id || (units[0]?.id || null),
+      unit_id: defaultUnitId,
       unit_price: '',
       discount_percentage: '0',
       tax_percentage: '0',
-      product: product,
-      specification: specification,
-      unit: units.find(u => u.id === product.unit_id) || units[0],
-    };
+    });
+    setProductModalVisible(false);
+    setItemFormModalVisible(true);
+  };
 
-    if (currentItemIndex !== null) {
-      // Update existing item
-      const updatedItems = [...items];
-      updatedItems[currentItemIndex] = newItem;
-      setItems(updatedItems);
-    } else {
-      // Add new item
-      setItems([...items, newItem]);
+  const handleEditItem = (index) => {
+    const item = items[index];
+    const product = products.find(p => p.id === item.product_id);
+
+    setEditingItemIndex(index);
+    setSelectedProductForItem(product);
+    setItemForm({
+      product_id: item.product_id,
+      product_specification_id: item.product_specification_id,
+      quantity: item.quantity,
+      unit_id: item.unit_id,
+      unit_price: item.unit_price,
+      discount_percentage: item.discount_percentage,
+      tax_percentage: item.tax_percentage,
+    });
+    setItemFormModalVisible(true);
+  };
+
+  const handleSaveItem = () => {
+    if (!itemForm.product_id || !itemForm.quantity || !itemForm.unit_id || !itemForm.unit_price) {
+      Alert.error('Lỗi', 'Vui lòng điền đầy đủ thông tin sản phẩm');
+      return;
     }
 
-    setSpecificationModalVisible(false);
-    setSelectedProduct(null);
+    const product = products.find(p => p.id === itemForm.product_id);
+    const specification = product?.product_specifications?.find(s => s.id === itemForm.product_specification_id);
+    const unit = units.find(u => u.id === itemForm.unit_id);
+
+    const newItem = {
+      ...itemForm,
+      product,
+      specification,
+      unit,
+    };
+
+    const newItems = [...items];
+    if (editingItemIndex !== null) {
+      newItems[editingItemIndex] = newItem;
+    } else {
+      newItems.push(newItem);
+    }
+
+    setItems(newItems);
+    setItemFormModalVisible(false);
+    setSelectedProductForItem(null);
+  };
+
+  const getFilteredProducts = () => {
+    console.log('🔍 getFilteredProducts called');
+    console.log('   products:', products.length);
+    console.log('   productSearchQuery:', productSearchQuery);
+
+    if (!productSearchQuery) {
+      console.log('   No search query, returning all products:', products.length);
+      return products;
+    }
+
+    const query = productSearchQuery.toLowerCase();
+    const filtered = products.filter(p =>
+      p.name?.toLowerCase().includes(query) ||
+      p.code?.toLowerCase().includes(query)
+    );
+
+    console.log('   Filtered products:', filtered.length);
+    return filtered;
   };
 
   const handleUpdateItem = (index, field, value) => {
@@ -275,7 +348,7 @@ export default function PurchaseOrderFormScreen() {
     // Validate supplier
     if (!formData.supplier_id) {
       Alert.error(
-        '🏢 Chưa chọn nhà cung cấp', 
+        '🏢 Chưa chọn nhà cung cấp',
         'Vui lòng chọn nhà cung cấp để tiếp tục.\n\nNhà cung cấp là thông tin bắt buộc cho đơn hàng.'
       );
       return false;
@@ -304,7 +377,7 @@ export default function PurchaseOrderFormScreen() {
       const item = items[i];
       const itemNumber = i + 1;
       const productName = item.product?.name || `Sản phẩm ${itemNumber}`;
-      
+
       // Validate quantity
       if (!item.quantity || parseFloat(item.quantity) <= 0) {
         Alert.error(
@@ -356,7 +429,7 @@ export default function PurchaseOrderFormScreen() {
       setSaving(true);
 
       const totals = calculateOrderTotals();
-      
+
       // Prepare order data
       const orderData = {
         supplier_id: formData.supplier_id,
@@ -396,7 +469,7 @@ export default function PurchaseOrderFormScreen() {
         // Delete old items and create new ones
         const oldItems = await api.get(`/api/purchase_order_items?where={"purchase_order_id":${orderId}}`);
         const oldItemsList = Array.isArray(oldItems.data) ? oldItems.data : (oldItems.data?.data || []);
-        
+
         for (const oldItem of oldItemsList) {
           await api.delete(`/api/purchase_order_items/${oldItem.id}`);
         }
@@ -423,7 +496,7 @@ export default function PurchaseOrderFormScreen() {
 
       Alert.success(
         'Thành công!',
-        status === 'draft' 
+        status === 'draft'
           ? 'Đơn hàng đã được lưu nháp'
           : 'Đơn hàng đã được xác nhận',
         () => {
@@ -606,8 +679,8 @@ export default function PurchaseOrderFormScreen() {
       {/* Product Modal */}
       {renderProductModal()}
 
-      {/* Specification Modal */}
-      {renderSpecificationModal()}
+      {/* Item Form Modal */}
+      {renderItemFormModal()}
 
       {/* Date Picker Modal */}
       {renderDatePickerModal()}
@@ -626,7 +699,7 @@ export default function PurchaseOrderFormScreen() {
   );
 
   // ==================== RENDER ITEM ====================
-  
+
   function renderItem(item, index) {
     const calc = calculateItemTotal(item);
 
@@ -642,53 +715,27 @@ export default function PurchaseOrderFormScreen() {
               </Text>
             )}
           </View>
-          <TouchableOpacity
-            style={styles.removeButton}
-            onPress={() => handleRemoveItem(index)}
-          >
-            <Ionicons name="close-circle" size={24} color="#EF4444" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Quantity & Unit */}
-        <View style={styles.itemRow}>
-          <View style={styles.itemField}>
-            <Text style={styles.itemFieldLabel}>Số lượng *</Text>
-            <TextInput
-              style={styles.itemInput}
-              value={item.quantity}
-              onChangeText={(text) => handleUpdateItem(index, 'quantity', text)}
-              keyboardType="numeric"
-              placeholder="0"
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
-
-          <View style={styles.itemField}>
-            <Text style={styles.itemFieldLabel}>Đơn vị</Text>
-            <Text style={styles.itemInputReadonly}>
-              {item.unit?.name || 'N/A'}
-            </Text>
+          <View style={styles.itemActions}>
+            <TouchableOpacity onPress={() => handleEditItem(index)} style={{ marginRight: 12 }}>
+              <Ionicons name="pencil" size={20} color="#3B82F6" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleRemoveItem(index)}>
+              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Unit Price */}
-        <View style={styles.itemField}>
-          <Text style={styles.itemFieldLabel}>Đơn giá *</Text>
-          <TextInput
-            style={styles.itemInput}
-            value={item.unit_price}
-            onChangeText={(text) => handleUpdateItem(index, 'unit_price', text)}
-            keyboardType="numeric"
-            placeholder="0"
-            placeholderTextColor="#9CA3AF"
-          />
-        </View>
-
-        {/* Item Total */}
-        <View style={styles.itemTotal}>
-          <Text style={styles.itemTotalLabel}>Thành tiền:</Text>
-          <Text style={styles.itemTotalValue}>{formatCurrency(calc.total)}</Text>
+        {/* Item Details (readonly display) */}
+        <View style={styles.itemDetails}>
+          <Text style={styles.itemDetailText}>
+            Số lượng: {item.quantity} {item.unit?.name || ''}
+          </Text>
+          <Text style={styles.itemDetailText}>
+            Đơn giá: {parseFloat(item.unit_price || 0).toLocaleString('vi-VN')} ₫
+          </Text>
+          <Text style={styles.itemDetailText}>
+            Thành tiền: {calc.total.toLocaleString('vi-VN')} ₫
+          </Text>
         </View>
       </View>
     );
@@ -750,7 +797,7 @@ export default function PurchaseOrderFormScreen() {
         onRequestClose={() => setProductModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+          <View style={[styles.modalContainer, { maxHeight: '85%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Chọn sản phẩm</Text>
               <TouchableOpacity onPress={() => setProductModalVisible(false)}>
@@ -758,29 +805,53 @@ export default function PurchaseOrderFormScreen() {
               </TouchableOpacity>
             </View>
 
-            <FlatList
-              data={products.filter(p => p.product_specifications && p.product_specifications.length > 0)}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.modalItem}
-                  onPress={() => handleSelectProduct(item)}
-                >
-                  <Ionicons name="cube" size={20} color="#3B82F6" />
-                  <View style={styles.modalItemContent}>
-                    <Text style={styles.modalItemName}>{item.name}</Text>
-                    <Text style={styles.modalItemSubtext}>Mã: {item.code}</Text>
-                    <Text style={styles.modalItemBadge}>
-                      {item.product_specifications.length} quy cách
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            {/* Search Bar */}
+            <View style={styles.modalSearchContainer}>
+              <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+              <TextInput
+                style={styles.modalSearchInput}
+                placeholder="Tìm sản phẩm theo tên hoặc mã..."
+                value={productSearchQuery}
+                onChangeText={setProductSearchQuery}
+                placeholderTextColor="#9CA3AF"
+              />
+              {productSearchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setProductSearchQuery('')}>
+                  <Ionicons name="close-circle" size={20} color="#9CA3AF" />
                 </TouchableOpacity>
               )}
+            </View>
+
+            <FlatList
+              data={getFilteredProducts()}
+              keyExtractor={(item) => item.id.toString()}
+              style={styles.modalBody}
+              contentContainerStyle={{ paddingBottom: 20 }}
+              renderItem={({ item, index }) => {
+                console.log(`📦 Rendering product ${index}:`, item.name);
+                return (
+                  <TouchableOpacity
+                    style={styles.modalItem}
+                    onPress={() => handleSelectProduct(item)}
+                  >
+                    <Ionicons name="cube" size={20} color="#3B82F6" />
+                    <View style={styles.modalItemContent}>
+                      <Text style={styles.modalItemName}>{item.name}</Text>
+                      <Text style={styles.modalItemSubtext}>Mã: {item.code}</Text>
+                      {item.product_specifications && item.product_specifications.length > 0 && (
+                        <Text style={styles.modalItemBadge}>
+                          {item.product_specifications.length} quy cách
+                        </Text>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                  </TouchableOpacity>
+                );
+              }}
               ListEmptyComponent={
                 <View style={styles.modalEmptyContainer}>
                   <Ionicons name="cube-outline" size={48} color="#D1D5DB" />
-                  <Text style={styles.modalEmpty}>Chỉ hiển thị sản phẩm có mã quy cách</Text>
+                  <Text style={styles.modalEmpty}>Không tìm thấy sản phẩm</Text>
                 </View>
               }
             />
@@ -790,67 +861,192 @@ export default function PurchaseOrderFormScreen() {
     );
   }
 
-  function renderSpecificationModal() {
-    if (!selectedProduct) return null;
-
-    const specs = selectedProduct.product_specifications || [];
-
+  function renderItemFormModal() {
     return (
       <Modal
-        visible={specificationModalVisible}
+        visible={itemFormModalVisible}
+        transparent
         animationType="slide"
-        transparent={true}
-        onRequestClose={() => {
-          setSpecificationModalVisible(false);
-          setSelectedProduct(null);
-        }}
+        onRequestClose={() => setItemFormModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
+          <View style={[styles.modalContainer, { maxHeight: '85%' }]}>
             <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Chọn quy cách</Text>
-                <Text style={styles.modalSubtitle}>{selectedProduct.name}</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => {
-                  setSpecificationModalVisible(false);
-                  setSelectedProduct(null);
-                }}
-              >
+              <Text style={styles.modalTitle}>
+                {editingItemIndex !== null ? 'Sửa thông tin' : 'Nhập thông tin'}
+              </Text>
+              <TouchableOpacity onPress={() => setItemFormModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
 
-            <FlatList
-              data={specs}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.modalItem}
-                  onPress={() => addItemWithSpecification(selectedProduct, item)}
-                >
-                  <Ionicons name="pricetag" size={20} color="#10B981" />
-                  <View style={styles.modalItemContent}>
-                    <Text style={styles.modalItemName}>
-                      {item.spec_name || item.name}: {item.spec_value || ''}
-                    </Text>
-                    {item.price && item.price > 0 && (
-                      <Text style={styles.modalItemSubtext}>
-                        Giá: {formatCurrency(item.price)}
-                      </Text>
-                    )}
+            <ScrollView style={{ padding: 16 }}>
+              {/* Selected Product Info */}
+              {selectedProductForItem && (
+                <View style={styles.selectedProductInfo}>
+                  <View style={styles.selectedProductIcon}>
+                    <Ionicons name="cube" size={20} color="#3B82F6" />
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={
-                <View style={styles.modalEmptyContainer}>
-                  <Ionicons name="pricetag-outline" size={48} color="#D1D5DB" />
-                  <Text style={styles.modalEmpty}>Sản phẩm này không có quy cách</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.selectedProductCode}>
+                      {selectedProductForItem.code ? `[${selectedProductForItem.code}]` : ''}
+                    </Text>
+                    <Text style={styles.selectedProductName}>{selectedProductForItem.name}</Text>
+                  </View>
                 </View>
-              }
-            />
+              )}
+
+              {/* Specifications (if product has any) */}
+              {selectedProductForItem?.product_specifications?.length > 0 && (
+                <View style={{ marginVertical: 12 }}>
+                  <Text style={styles.sectionTitle}>Mã quy cách</Text>
+                  <View style={{ marginTop: 8 }}>
+                    {selectedProductForItem.product_specifications.map((spec) => (
+                      <TouchableOpacity
+                        key={spec.id}
+                        style={[
+                          styles.specificationOption,
+                          itemForm.product_specification_id === spec.id && styles.specificationOptionSelected,
+                        ]}
+                        onPress={() => {
+                          setItemForm({ ...itemForm, product_specification_id: spec.id });
+                        }}
+                      >
+                        <View style={styles.radioButton}>
+                          {itemForm.product_specification_id === spec.id && (
+                            <View style={styles.radioButtonInner} />
+                          )}
+                        </View>
+                        <Text
+                          style={[
+                            styles.specificationOptionText,
+                            itemForm.product_specification_id === spec.id && styles.specificationOptionTextSelected,
+                          ]}
+                        >
+                          {spec.spec_name || spec.name || spec.specification_name || spec.description || `Quy cách #${spec.id}`}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Quantity */}
+              <View style={{ marginVertical: 8 }}>
+                <Text style={styles.sectionTitle}>Số lượng *</Text>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="calculator" size={20} color="#6B7280" />
+                  <TextInput
+                    style={styles.input}
+                    value={itemForm.quantity}
+                    onChangeText={(text) => setItemForm({ ...itemForm, quantity: text })}
+                    placeholder="Nhập số lượng"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              {/* Unit */}
+              <View style={{ marginVertical: 8 }}>
+                <Text style={styles.sectionTitle}>Đơn vị *</Text>
+                {itemForm.unit_id ? (
+                  <View>
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="cube-outline" size={20} color="#6B7280" />
+                      <Text style={styles.input}>
+                        {units.find(u => u.id === itemForm.unit_id)?.name || 'Chưa chọn'}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.changeUnitButton}
+                      onPress={() => setItemForm({ ...itemForm, unit_id: '' })}
+                    >
+                      <Text style={styles.changeUnitText}>Đổi đơn vị</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {units.map((unit) => (
+                      <TouchableOpacity
+                        key={unit.id}
+                        style={styles.filterButton}
+                        onPress={() => setItemForm({ ...itemForm, unit_id: unit.id })}
+                      >
+                        <Text style={styles.filterButtonText}>
+                          {unit.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Unit Price */}
+              <View style={{ marginVertical: 8 }}>
+                <Text style={styles.sectionTitle}>Đơn giá *</Text>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="cash" size={20} color="#6B7280" />
+                  <TextInput
+                    style={styles.input}
+                    value={itemForm.unit_price}
+                    onChangeText={(text) => setItemForm({ ...itemForm, unit_price: text })}
+                    placeholder="Nhập đơn giá"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              {/* Discount */}
+              <View style={{ marginVertical: 8 }}>
+                <Text style={styles.sectionTitle}>Giảm giá (%)</Text>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="pricetag" size={20} color="#6B7280" />
+                  <TextInput
+                    style={styles.input}
+                    value={itemForm.discount_percentage}
+                    onChangeText={(text) => setItemForm({ ...itemForm, discount_percentage: text })}
+                    placeholder="0"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              {/* Tax */}
+              <View style={{ marginVertical: 8 }}>
+                <Text style={styles.sectionTitle}>Thuế (%)</Text>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="document-text" size={20} color="#6B7280" />
+                  <TextInput
+                    style={styles.input}
+                    value={itemForm.tax_percentage}
+                    onChangeText={(text) => setItemForm({ ...itemForm, tax_percentage: text })}
+                    placeholder="0"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              {/* Save Button */}
+              <View style={{ marginTop: 24, marginBottom: 8 }}>
+                <TouchableOpacity
+                  style={styles.saveItemButton}
+                  onPress={handleSaveItem}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={['#3B82F6', '#2563EB']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.saveButtonGradient}
+                  >
+                    <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />
+                    <Text style={styles.saveButtonText}>
+                      {editingItemIndex !== null ? 'Cập nhật' : 'Thêm vào danh sách'}
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -871,7 +1067,7 @@ export default function PurchaseOrderFormScreen() {
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
-    
+
     // Generate quick date options
     const quickDates = [
       { label: 'Hôm nay', date: today },
@@ -1212,7 +1408,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '80%',
+    width: '100%',
+    height: '80%',
     paddingTop: 20,
   },
   modalHeader: {
@@ -1316,5 +1513,162 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
     color: '#EF4444',
+  },
+  // New styles for Item Form Modal
+  itemActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  itemDetails: {
+    gap: 6,
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  itemDetailText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  selectedProductInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 12,
+  },
+  selectedProductIcon: {
+    width: 40,
+    height: 40,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedProductCode: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  selectedProductName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  specificationOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 12,
+  },
+  specificationOptionSelected: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  specificationOptionText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  specificationOptionTextSelected: {
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  radioButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioButtonInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#3B82F6',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    gap: 8,
+  },
+  changeUnitButton: {
+    marginTop: 8,
+    padding: 8,
+    alignItems: 'center',
+  },
+  changeUnitText: {
+    fontSize: 13,
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+  },
+  filterButtonText: {
+    fontSize: 14,
+    color: '#1F2937',
+    fontWeight: '500',
+  },
+  saveItemButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  saveButtonGradient: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    gap: 10,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  modalSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#F9FAFB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    gap: 8,
+  },
+  modalSearchInput: {
+    flex: 1,
+    paddingVertical: 8,
+    fontSize: 15,
+    color: '#1F2937',
+  },
+  modalBody: {
+    flex: 1,
   },
 });

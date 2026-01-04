@@ -19,25 +19,25 @@ function authReducer(state, action) {
     case 'LOADING':
       return { ...state, loading: true, error: null };
     case 'LOGIN_SUCCESS':
-      return { 
-        ...state, 
-        user: action.payload, 
-        loading: false, 
-        error: null 
+      return {
+        ...state,
+        user: action.payload,
+        loading: false,
+        error: null
       };
     case 'LOGIN_FAILURE':
-      return { 
-        ...state, 
-        user: null, 
-        loading: false, 
-        error: action.payload 
+      return {
+        ...state,
+        user: null,
+        loading: false,
+        error: action.payload
       };
     case 'LOGOUT':
-      return { 
-        ...state, 
-        user: null, 
-        loading: false, 
-        error: null 
+      return {
+        ...state,
+        user: null,
+        loading: false,
+        error: null
       };
     case 'CLEAR_ERROR':
       return { ...state, error: null };
@@ -64,7 +64,7 @@ export function AuthProvider({ children }) {
     try {
       // Check if token exists
       const tokenExists = await TokenStorage.exists();
-      
+
       if (!tokenExists) {
         dispatch({ type: 'LOGOUT' });
         return;
@@ -92,7 +92,8 @@ export function AuthProvider({ children }) {
           }
         }
       } catch (error) {
-        console.error('Error fetching user info:', error);
+        // Non-critical: API call failed but we have cached user data
+        console.log('Background fetch user info failed (non-critical):', error.message);
         // If no cached user and API fails, logout
         if (!cachedUser) {
           await clearAuthStorage();

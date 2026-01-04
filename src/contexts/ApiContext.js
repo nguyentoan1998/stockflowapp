@@ -27,12 +27,12 @@ export function ApiProvider({ children }) {
   // Find your IP: Run 'ipconfig' (Windows) or 'ifconfig' (Mac/Linux) and look for IPv4 address
   const PRODUCTION_URL = 'https://api.tinphatmetech.online';
   const LOCAL_URL = 'http://192.168.1.139:3001'; // Change 192.168.1.139 to your actual IP
-  
+
   // Use LOCAL_URL for testing, change to PRODUCTION_URL for production
-  const USE_LOCAL = false; // Set to true for localhost testing, false for production
-  
+  const USE_LOCAL = true; // Set to true for localhost testing, false for production
+
   const BASE_URL = currentBaseUrl || (USE_LOCAL ? LOCAL_URL : PRODUCTION_URL);
-  
+
 
   // Get API key from AsyncStorage with default fallback
   const getApiKey = async () => {
@@ -119,7 +119,7 @@ export function ApiProvider({ children }) {
           url: error.config?.baseURL + error.config?.url,
           headers: error.config?.headers,
         });
-        
+
         // Token expired or invalid - clear auth data only (keep query cache)
         await clearAuthStorage();
       }
@@ -144,10 +144,10 @@ export function ApiProvider({ children }) {
     setIsRetryingConnection(true);
     const newRetryCount = retryCount + 1;
     setRetryCount(newRetryCount);
-    
+
     // Try to connect
     const success = await testConnection();
-    
+
     if (success) {
       // Thành công - auto close
       setShowConnectionDialog(false);
@@ -170,7 +170,7 @@ export function ApiProvider({ children }) {
   // Test connection with fallback
   const testConnection = async (url = null) => {
     const testUrl = url || currentBaseUrl || PRODUCTION_URL;
-    
+
     try {
       setLoading(true);
       const testApi = axios.create({
@@ -181,7 +181,7 @@ export function ApiProvider({ children }) {
           'Accept': 'application/json',
         },
       });
-      
+
       // Just make a simple request to check if server is reachable
       // Don't use /health as it may require auth
       // Instead, just try to connect - if server responds with any status, it's up
@@ -189,7 +189,7 @@ export function ApiProvider({ children }) {
         await testApi.head('/', {
           validateStatus: () => true // Accept any status code
         });
-        
+
         // Server is reachable
         if (currentBaseUrl !== testUrl) {
           setCurrentBaseUrl(testUrl);
@@ -205,7 +205,7 @@ export function ApiProvider({ children }) {
       if (testUrl === PRODUCTION_URL) {
         return await testConnection(LOCAL_URL);
       }
-      
+
       // Both failed - set to production anyway and let app continue
       if (currentBaseUrl !== PRODUCTION_URL) {
         setCurrentBaseUrl(PRODUCTION_URL);

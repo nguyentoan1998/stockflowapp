@@ -11,7 +11,7 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApi } from '../../contexts/ApiContext';
@@ -177,18 +177,17 @@ export default function CustomersScreen() {
     <ListCard
       title={customer.name}
       subtitle={customer.code}
-      imageIcon="person-outline"
+      imageIcon="account-outline"
       details={[
         customer.description && {
-          label: 'Mô tả',
-          value: customer.description,
-          icon: 'document-text-outline',
+          text: customer.description,
+          icon: 'text-box-outline',
         },
       ].filter(Boolean)}
       actions={[
-        { label: 'Xem', icon: 'eye', color: '#1976d2', onPress: () => handleView(customer) },
-        { label: 'Sửa', icon: 'pencil', color: '#4CAF50', onPress: () => handleEdit(customer) },
-        { label: 'Xóa', icon: 'delete', color: '#F44336', onPress: () => handleDelete(customer.id) },
+        { label: 'Xem', icon: 'eye-outline', color: '#1976d2', onPress: () => handleView(customer) },
+        { label: 'Sửa', icon: 'pencil-outline', color: '#4CAF50', onPress: () => handleEdit(customer) },
+        { label: 'Xóa', icon: 'delete-outline', color: '#F44336', onPress: () => handleDelete(customer.id) },
       ]}
     />
   );
@@ -236,7 +235,7 @@ export default function CustomersScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="person-outline" size={64} color="#ccc" />
+            <MaterialCommunityIcons name="account-outline" size={64} color="#ccc" />
             <Text style={styles.emptyText}>
               {searchQuery ? 'Không tìm thấy kết quả' : 'Chưa có khách hàng nào'}
             </Text>
