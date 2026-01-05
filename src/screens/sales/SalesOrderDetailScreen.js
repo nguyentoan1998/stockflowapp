@@ -52,7 +52,7 @@ export default function SalesOrderDetailScreen() {
         navigation.navigate('SalesOrderForm', { mode: 'edit', orderId: order.id });
     };
 
-    const handleApprove = () => {
+    const handleApprove = async () => {
         console.log('🔵 handleApprove CALLED - START');
         console.log('🔵 Order status:', order.status);
 
@@ -61,40 +61,55 @@ export default function SalesOrderDetailScreen() {
             return;
         }
 
-        Alert.confirm(
-            'Xác nhận đơn hàng',
-            'Bạn có chắc chắn muốn xác nhận đơn hàng này? Sau khi xác nhận sẽ không thể chỉnh sửa.',
-            async () => {
-                console.log('🔵 User confirmed! Starting approval process...');
-                try {
-                    // 1. Update order status
-                    console.log('🔵 Step 1: Updating order status to approved...');
-                    await api.put(`/api/sales_orders/${order.id}`, {
-                        status: 'approved',
-                    });
-                    console.log('✅ Order status updated successfully');
+        // TEMPORARY: Use window.confirm for testing
+        const confirmed = window.confirm('Bạn có chắc chắn muốn xác nhận đơn hàng này?');
 
-                    // 2. Trigger production automation
-                    console.log('🏭 Step 2: Triggering production automation...');
-                    try {
-                        const automationResult = await api.post('/api/trigger-production-automation', {
-                            salesOrderId: order.id,
-                        });
-                        console.log('✅ Production automation completed:', automationResult.data);
-                    } catch (autoError) {
-                        console.error('⚠️ Production automation failed (non-blocking):', autoError);
-                        console.error('⚠️ Error details:', autoError.response?.data);
-                        // Don't block order approval if automation fails
-                    }
+        if (!confirmed) {
+            console.log('❌ User cancelled');
+            return;
+        }
 
-                    Alert.success('Thành công!', 'Đơn hàng đã được xác nhận');
-                    await fetchOrderDetail();
-                } catch (error) {
-                    console.error('❌ Error approving order:', error);
-                    Alert.error('Lỗi', 'Không thể xác nhận đơn hàng');
-                }
+        console.log('✅ User confirmed! Starting approval process...');
+
+        try {
+            // 1. Update order status
+            console.log('🔵 Step 1: Updating order status to approved...');
+            console.log('📦 Order ID:', order.id);
+
+            await api.put(`/api/sales_orders/${order.id}`, {
+                status: 'approved',
+            });
+            console.log('✅ Order status updated successfully');
+
+            // 2. Trigger production automation
+            console.log('\n' + '='.repeat(50));
+            console.log('🏭 FRONTEND: Triggering production automation...');
+            console.log('📦 Order ID:', order.id);
+            console.log('🌐 API URL:', api.defaults.baseURL);
+            console.log('='.repeat(50));
+
+            try {
+                const automationResult = await api.post('/api/trigger-production-automation', {
+                    salesOrderId: order.id,
+                });
+                console.log('\n✅ FRONTEND: Production automation API call SUCCESS');
+                console.log('Response:', automationResult.data);
+                console.log('='.repeat(50) + '\n');
+            } catch (autoError) {
+                console.error('\n❌ FRONTEND: Production automation API call FAILED');
+                console.error('Error:', autoError.message);
+                console.error('Response:', autoError.response?.data);
+                console.error('Status:', autoError.response?.status);
+                console.error('='.repeat(50) + '\n');
+                // Don't block order approval if automation fails
             }
-        );
+
+            Alert.success('Thành công!', 'Đơn hàng đã được xác nhận');
+            await fetchOrderDetail();
+        } catch (error) {
+            console.error('❌ Error approving order:', error);
+            Alert.error('Lỗi', 'Không thể xác nhận đơn hàng');
+        }
     };
 
     const handleCancel = () => {

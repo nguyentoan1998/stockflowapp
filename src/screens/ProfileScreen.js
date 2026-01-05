@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Animated,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import {
   Text,
@@ -33,8 +34,8 @@ const StatItem = memo(({ value, label, color = Colors.primary }) => (
 ));
 
 const SettingItem = memo(({ icon, title, subtitle, onPress, rightComponent, showChevron = true }) => (
-  <TouchableOpacity 
-    style={styles.settingItem} 
+  <TouchableOpacity
+    style={styles.settingItem}
     onPress={onPress}
     activeOpacity={0.7}
   >
@@ -64,7 +65,7 @@ export default function ProfileScreen() {
   const [userStats, setUserStats] = useState({});
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  
+
   const [editForm, setEditForm] = useState({
     fullName: '',
     email: '',
@@ -136,13 +137,21 @@ export default function ProfileScreen() {
     try {
       setLoading(true);
       const response = await api.put(`/users/${user.id}`, editForm);
-      
+
       if (response.data.success) {
-        Alert.alert('Thành công', 'Cập nhật thông tin thành công!');
+        if (Platform.OS === 'web') {
+          window.alert('Cập nhật thông tin thành công!');
+        } else {
+          Alert.alert('Thành công', 'Cập nhật thông tin thành công!');
+        }
         setShowEditModal(false);
       }
     } catch (error) {
-      Alert.alert('Loi', 'Khong the cap nhat thong tin.');
+      if (Platform.OS === 'web') {
+        window.alert('Không thể cập nhật thông tin.');
+      } else {
+        Alert.alert('Lỗi', 'Không thể cập nhật thông tin.');
+      }
     } finally {
       setLoading(false);
     }
@@ -150,7 +159,11 @@ export default function ProfileScreen() {
 
   const handleChangePassword = async () => {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      Alert.alert('Loi', 'Mat khau xac nhan khong khop!');
+      if (Platform.OS === 'web') {
+        window.alert('Mật khẩu xác nhận không khớp!');
+      } else {
+        Alert.alert('Lỗi', 'Mật khẩu xác nhận không khớp!');
+      }
       return;
     }
 
@@ -162,26 +175,40 @@ export default function ProfileScreen() {
       });
 
       if (response.data.success) {
-        Alert.alert('Thành công', 'Đổi mật khẩu thành công!');
+        if (Platform.OS === 'web') {
+          window.alert('Đổi mật khẩu thành công!');
+        } else {
+          Alert.alert('Thành công', 'Đổi mật khẩu thành công!');
+        }
         setShowPasswordModal(false);
         setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       }
     } catch (error) {
-      Alert.alert('Lỗi', 'Mật khẩu hiện tại không đúng.');
+      if (Platform.OS === 'web') {
+        window.alert('Mật khẩu hiện tại không đúng.');
+      } else {
+        Alert.alert('Lỗi', 'Mật khẩu hiện tại không đúng.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      'Đăng xuất',
-      'Bạn có chắc muốn đăng xuất?',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { text: 'Đăng xuất', style: 'destructive', onPress: logout }
-      ]
-    );
+    if (Platform.OS === 'web') {
+      if (window.confirm('Bạn có chắc muốn đăng xuất?')) {
+        logout();
+      }
+    } else {
+      Alert.alert(
+        'Đăng xuất',
+        'Bạn có chắc muốn đăng xuất?',
+        [
+          { text: 'Hủy', style: 'cancel' },
+          { text: 'Đăng xuất', style: 'destructive', onPress: logout }
+        ]
+      );
+    }
   };
 
   const getRoleBadge = (role) => {
@@ -191,7 +218,7 @@ export default function ProfileScreen() {
       staff: { bg: Colors.success, label: 'Nhân viên', icon: 'account' },
     };
     const { bg, label, icon } = config[role] || config.staff;
-    
+
     return (
       <View style={[styles.roleBadge, { backgroundColor: bg }]}>
         <Icon name={icon} size={14} color="#FFFFFF" />
@@ -206,7 +233,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -215,7 +242,7 @@ export default function ProfileScreen() {
         }
       >
         {/* Profile Header */}
-        <Animated.View 
+        <Animated.View
           style={[
             styles.headerWrapper,
             {
@@ -236,7 +263,7 @@ export default function ProfileScreen() {
                   <Icon name="camera" size={14} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={styles.userInfo}>
                 <Text style={styles.userName}>
                   {user?.fullName || user?.username || 'Nguoi dung'}
@@ -246,8 +273,8 @@ export default function ProfileScreen() {
                 </Text>
                 {getRoleBadge(user?.role)}
               </View>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.editProfileBtn}
                 onPress={() => setShowEditModal(true)}
               >
@@ -284,14 +311,14 @@ export default function ProfileScreen() {
         <SlideUp delay={300}>
           <ModernCard style={styles.settingsCard} elevated>
             <Text style={styles.sectionTitle}>Cài đặt</Text>
-            
+
             <SettingItem
               icon="lock-outline"
               title="Đổi mật khẩu"
               subtitle="Cập nhật mật khẩu bảo mật"
               onPress={() => setShowPasswordModal(true)}
             />
-            
+
             <SettingItem
               icon="bell-outline"
               title="Thong bao"
@@ -305,7 +332,7 @@ export default function ProfileScreen() {
                 />
               }
             />
-            
+
             <SettingItem
               icon="brightness-6"
               title="Che do toi"
@@ -319,12 +346,14 @@ export default function ProfileScreen() {
                 />
               }
             />
-            
+
             <SettingItem
               icon="information-outline"
               title="Về ứng dụng"
               subtitle="Phiên bản 1.0.0"
-              onPress={() => Alert.alert('StockFlow', 'Phiên bản 1.0.0\nQuản lý kho hàng thông minh')}
+              onPress={() => Platform.OS === 'web'
+                ? window.alert('StockFlow\nPhiên bản 1.0.0\nQuản lý kho hàng thông minh')
+                : Alert.alert('StockFlow', 'Phiên bản 1.0.0\nQuản lý kho hàng thông minh')}
             />
           </ModernCard>
         </SlideUp>
@@ -346,65 +375,65 @@ export default function ProfileScreen() {
 
       {/* Edit Profile Modal */}
       <Portal>
-        <Modal 
-          visible={showEditModal} 
-          onDismiss={() => setShowEditModal(false)} 
+        <Modal
+          visible={showEditModal}
+          onDismiss={() => setShowEditModal(false)}
           contentContainerStyle={styles.modal}
         >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Chỉnh sửa thông tin</Text>
-            
+
             <TextInput
               label="Họ và tên"
               value={editForm.fullName}
-              onChangeText={(text) => setEditForm({...editForm, fullName: text})}
+              onChangeText={(text) => setEditForm({ ...editForm, fullName: text })}
               mode="outlined"
               style={styles.input}
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
             />
-            
+
             <TextInput
               label="Email"
               value={editForm.email}
-              onChangeText={(text) => setEditForm({...editForm, email: text})}
+              onChangeText={(text) => setEditForm({ ...editForm, email: text })}
               mode="outlined"
               style={styles.input}
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
             />
-            
+
             <TextInput
               label="Số điện thoại"
               value={editForm.phone}
-              onChangeText={(text) => setEditForm({...editForm, phone: text})}
+              onChangeText={(text) => setEditForm({ ...editForm, phone: text })}
               mode="outlined"
               style={styles.input}
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
             />
-            
+
             <TextInput
               label="Phong ban"
               value={editForm.department}
-              onChangeText={(text) => setEditForm({...editForm, department: text})}
+              onChangeText={(text) => setEditForm({ ...editForm, department: text })}
               mode="outlined"
               style={styles.input}
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
             />
-            
+
             <View style={styles.modalActions}>
-              <Button 
+              <Button
                 mode="outlined"
                 onPress={() => setShowEditModal(false)}
                 style={{ flex: 1, marginRight: 8 }}
               >
                 Hủy
               </Button>
-              <Button 
+              <Button
                 mode="contained"
-                onPress={handleEditProfile} 
+                onPress={handleEditProfile}
                 loading={loading}
                 style={{ flex: 1 }}
               >
@@ -417,58 +446,58 @@ export default function ProfileScreen() {
 
       {/* Change Password Modal */}
       <Portal>
-        <Modal 
-          visible={showPasswordModal} 
-          onDismiss={() => setShowPasswordModal(false)} 
+        <Modal
+          visible={showPasswordModal}
+          onDismiss={() => setShowPasswordModal(false)}
           contentContainerStyle={styles.modal}
         >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Đổi mật khẩu</Text>
-            
+
             <TextInput
               label="Mật khẩu hiện tại"
               value={passwordForm.currentPassword}
-              onChangeText={(text) => setPasswordForm({...passwordForm, currentPassword: text})}
+              onChangeText={(text) => setPasswordForm({ ...passwordForm, currentPassword: text })}
               secureTextEntry
               mode="outlined"
               style={styles.input}
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
             />
-            
+
             <TextInput
               label="Mật khẩu mới"
               value={passwordForm.newPassword}
-              onChangeText={(text) => setPasswordForm({...passwordForm, newPassword: text})}
+              onChangeText={(text) => setPasswordForm({ ...passwordForm, newPassword: text })}
               secureTextEntry
               mode="outlined"
               style={styles.input}
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
             />
-            
+
             <TextInput
               label="Xác nhận mật khẩu"
               value={passwordForm.confirmPassword}
-              onChangeText={(text) => setPasswordForm({...passwordForm, confirmPassword: text})}
+              onChangeText={(text) => setPasswordForm({ ...passwordForm, confirmPassword: text })}
               secureTextEntry
               mode="outlined"
               style={styles.input}
               outlineColor={Colors.border}
               activeOutlineColor={Colors.primary}
             />
-            
+
             <View style={styles.modalActions}>
-              <Button 
+              <Button
                 mode="outlined"
                 onPress={() => setShowPasswordModal(false)}
                 style={{ flex: 1, marginRight: 8 }}
               >
                 Hủy
               </Button>
-              <Button 
+              <Button
                 mode="contained"
-                onPress={handleChangePassword} 
+                onPress={handleChangePassword}
                 loading={loading}
                 style={{ flex: 1 }}
               >

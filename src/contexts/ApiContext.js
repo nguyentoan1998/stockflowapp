@@ -26,10 +26,17 @@ export function ApiProvider({ children }) {
   // For emulator/device testing, use your computer's IP address
   // Find your IP: Run 'ipconfig' (Windows) or 'ifconfig' (Mac/Linux) and look for IPv4 address
   const PRODUCTION_URL = 'https://api.tinphatmetech.online';
-  const LOCAL_URL = 'http://192.168.1.139:3001'; // Change 192.168.1.139 to your actual IP
+  const LOCAL_URL_MOBILE = 'http://192.168.1.139:3001'; // For mobile devices
+  const LOCAL_URL_WEB = 'http://localhost:3001'; // For web browser
+
+  // Detect if running on web
+  const isWeb = typeof window !== 'undefined' && window.navigator && /web/i.test(window.navigator.platform);
 
   // Use LOCAL_URL for testing, change to PRODUCTION_URL for production
-  const USE_LOCAL = false; // Set to true for localhost testing, false for production
+  const USE_LOCAL = true; // Set to true for localhost testing, false for production
+
+  // Use localhost for web, network IP for mobile
+  const LOCAL_URL = isWeb ? LOCAL_URL_WEB : LOCAL_URL_MOBILE;
 
   const BASE_URL = currentBaseUrl || (USE_LOCAL ? LOCAL_URL : PRODUCTION_URL);
 

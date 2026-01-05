@@ -7,6 +7,7 @@ import {
   Animated,
   Easing,
   Dimensions,
+  Platform,
 } from 'react-native';
 import {
   Text,
@@ -50,7 +51,7 @@ export default function CategoriesScreen() {
     ]).start();
 
     // Staggered card animations
-    const cardDelays = cardAnimations.map((anim, index) => 
+    const cardDelays = cardAnimations.map((anim, index) =>
       Animated.timing(anim, {
         toValue: 1,
         duration: 500,
@@ -139,7 +140,7 @@ export default function CategoriesScreen() {
   const handleModulePress = (module) => {
     // Scale animation on press
     const scaleAnim = new Animated.Value(1);
-    
+
     Animated.sequence([
       Animated.timing(scaleAnim, {
         toValue: 0.95,
@@ -183,7 +184,7 @@ export default function CategoriesScreen() {
         case 'employees':
           navigation.navigate('Staff');
           break;
-        case 'materials' :
+        case 'materials':
           navigation.navigate('Products');
           break;
         default:
@@ -219,7 +220,7 @@ export default function CategoriesScreen() {
               <View style={styles.iconContainer}>
                 <Icon name={module.icon} size={48} color="#fff" />
               </View>
-              
+
               <Text variant="titleMedium" style={styles.moduleTitle}>
                 {module.title}
               </Text>
@@ -259,7 +260,7 @@ export default function CategoriesScreen() {
           <View style={styles.modulesGrid}>
             {categoryModules.map((module, index) => renderModuleCard(module, index))}
           </View>
-          
+
           <View style={{ height: 100 }} />
         </ScrollView>
       </Animated.View>
@@ -279,9 +280,13 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     backgroundColor: '#fff',
     elevation: 4,
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)' }
+      : {
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+      }),
   },
   headerContent: {
     marginBottom: 0,
@@ -340,9 +345,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    // Use web-compatible textShadow
+    ...(Platform.OS === 'web'
+      ? { textShadow: '0px 1px 3px rgba(0, 0, 0, 0.3)' }
+      : {
+        textShadowColor: 'rgba(0, 0, 0, 0.3)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
+      }),
   },
   summaryContainer: {
     position: 'absolute',

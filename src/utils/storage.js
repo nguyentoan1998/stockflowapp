@@ -1,11 +1,20 @@
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
-// Token Storage (SecureStore - encrypted)
+// Detect if running on web
+const isWeb = Platform.OS === 'web';
+
+// Token Storage (SecureStore on mobile, localStorage on web)
 export const TokenStorage = {
   save: async (token) => {
     try {
-      await SecureStore.setItemAsync('authToken', token);
+      if (isWeb) {
+        // Use AsyncStorage (which uses localStorage on web)
+        await AsyncStorage.setItem('authToken', token);
+      } else {
+        await SecureStore.setItemAsync('authToken', token);
+      }
     } catch (error) {
       console.error('Error saving token:', error);
       throw error;
@@ -14,7 +23,11 @@ export const TokenStorage = {
 
   get: async () => {
     try {
-      return await SecureStore.getItemAsync('authToken');
+      if (isWeb) {
+        return await AsyncStorage.getItem('authToken');
+      } else {
+        return await SecureStore.getItemAsync('authToken');
+      }
     } catch (error) {
       console.error('Error retrieving token:', error);
       return null;
@@ -23,7 +36,11 @@ export const TokenStorage = {
 
   remove: async () => {
     try {
-      await SecureStore.deleteItemAsync('authToken');
+      if (isWeb) {
+        await AsyncStorage.removeItem('authToken');
+      } else {
+        await SecureStore.deleteItemAsync('authToken');
+      }
     } catch (error) {
       console.error('Error removing token:', error);
     }
@@ -31,8 +48,13 @@ export const TokenStorage = {
 
   exists: async () => {
     try {
-      const token = await SecureStore.getItemAsync('authToken');
-      return !!token;
+      if (isWeb) {
+        const token = await AsyncStorage.getItem('authToken');
+        return !!token;
+      } else {
+        const token = await SecureStore.getItemAsync('authToken');
+        return !!token;
+      }
     } catch (error) {
       console.error('Error checking token:', error);
       return false;
